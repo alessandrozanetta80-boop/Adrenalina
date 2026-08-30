@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Adrenalina — Gestionale squadra</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
+<!-- icona-192.png e icona-512.png sono pronti per una futura
+     icona PWA: il manifest non esiste ancora e non viene aggiunto qui. -->
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="layout.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+
+<header class="intestazione" id="intestazione"></header>
+
+<main class="contenuto" id="app"></main>
+
+<div id="modale-contenitore"></div>
+<div id="toast-contenitore" class="toast-contenitore" role="status" aria-live="polite"></div>
+
+<!-- Script classici, caricati in ordine esplicito. Nessun modulo ES, nessun build step. -->
+<script src="versione.js"></script>
+<script src="costanti.js"></script>
+<script src="id.js"></script>
+<script src="calendario.js"></script>
+<script src="schema.js"></script>
+<script src="db.js"></script>
+<script src="repo.js"></script>
+<script src="repoSquadre.js"></script>
+<script src="repoStagioni.js"></script>
+<script src="repoMembri.js"></script>
+<script src="repoIscrizioni.js"></script>
+<script src="repoGiornate.js"></script>
+<script src="repoAbbattimenti.js"></script>
+<script src="repoControlliSanitari.js"></script>
+<script src="quoteService.js"></script>
+<script src="squadraService.js"></script>
+<script src="stagioneService.js"></script>
+<script src="membroService.js"></script>
+<script src="presenzaService.js"></script>
+<script src="giornataService.js"></script>
+<script src="capoService.js"></script>
+<script src="sanitarioService.js"></script>
+<script src="backupService.js"></script>
+<script src="datiDemo.js"></script>
+<script src="componenti.js"></script>
+<script src="vistaConfigurazione.js"></script>
+<script src="vistaHome.js"></script>
+<script src="vistaSoci.js"></script>
+<script src="vistaSchedaSocio.js"></script>
+<script src="vistaFormSocio.js"></script>
+<script src="vistaGiornate.js"></script>
+<script src="vistaFormGiornata.js"></script>
+<script src="vistaSchedaGiornata.js"></script>
+<script src="vistaPresenze.js"></script>
+<script src="vistaAbbattimenti.js"></script>
+<script src="vistaFormCapo.js"></script>
+<script src="vistaSchedaCapo.js"></script>
+<script src="vistaFormSanitario.js"></script>
+<script src="vistaStagioni.js"></script>
+<script src="vistaBackup.js"></script>
+<script src="router.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
