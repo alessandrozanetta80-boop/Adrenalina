@@ -3,18 +3,34 @@
   var App = global.App;
   App.seed = App.seed || {};
 
-  // Tutti i record creati qui portano demo:true e sono eliminabili
-  // dalla schermata Backup con "Elimina dati di prova".
+  // ATTENZIONE: questo file contiene DUE cose diverse.
+  //
+  //   1. ANAGRAFICA REALE della squadra Adrenalina: squadra, stagione,
+  //      21 soci e le loro iscrizioni. Tutti con demo:false.
+  //      Non vengono toccati da "Elimina dati di prova".
+  //
+  //   2. DATI DI CACCIA FITTIZI: giornate, presenze, abbattimenti e
+  //      controlli sanitari. Tutti con demo:true.
+  //      Servono solo a mostrare come funziona l'app e si cancellano
+  //      da Backup dati -> "Elimina dati di prova".
+  //
+  // I nomi che compaiono negli eventi di caccia sono reali, gli eventi no:
+  // nessuna giornata, presenza, abbattimento o controllo qui dentro
+  // corrisponde a un fatto avvenuto.
+  //
+  // I dati non forniti restano null: nulla e' stato inventato.
+
   function costruisci() {
     var idSquadra = App.core.id.nuovo(App.core.id.SQUADRA);
     var idStagione = App.core.id.nuovo(App.core.id.STAGIONE);
     var quotaPredefinitaCent = 24000;   // 240,00 €
 
+    // ---------- squadra e stagione: DATI REALI ----------
     var squadra = App.data.repo.timbraCreazione({
       id: idSquadra,
       nome: 'Adrenalina',
       stagioneAttivaId: idStagione,
-      demo: true
+      demo: false
     });
 
     var stagione = App.data.repo.timbraCreazione({
@@ -25,91 +41,124 @@
       dataFine: '2027-01-31',
       stato: 'attiva',
       quotaAnnualePredefinitaCent: quotaPredefinitaCent,
-      demo: true
+      demo: false
     });
 
+    // ---------- soci: DATI REALI ----------
+    // nascita, telefono e porto d'armi sono null dove il dato non e' noto.
+    var CS = ['CAPOSQUADRA', 'CANARO'];
+    var PO = ['POSTAIOLO'];
+
     var persone = [
-      { nome: 'Marco',    cognome: 'Rossi',    nascita: '1972-03-14', tel: '3401234567',
-        livello: 'AMMINISTRATORE', attivo: true,  porto: '2028-05-31',
-        ruoli: ['CAPOSQUADRA', 'CANARO'], ospite: false, prevista: 24000, versata: 24000,
-        note: 'Referente della squadra.' },
-      { nome: 'Luca',     cognome: 'Bianchi',  nascita: '1985-11-02', tel: '3387654321',
-        livello: 'GESTORE', attivo: true, porto: '2027-02-28',
-        ruoli: ['VICE_CAPOSQUADRA', 'POSTAIOLO'], ospite: false, prevista: 24000, versata: 10000,
-        note: '' },
-      { nome: 'Andrea',   cognome: 'Verdi',    nascita: '1990-07-21', tel: '3319876543',
-        livello: 'MEMBRO', attivo: true, porto: '2027-09-15',
-        ruoli: ['CANARO'], ospite: false, prevista: 24000, versata: 0, note: '' },
-      { nome: 'Giuseppe', cognome: 'Neri',     nascita: '1965-01-09', tel: '3475551122',
-        livello: 'MEMBRO', attivo: true, porto: '2026-11-30',
-        ruoli: ['POSTAIOLO'], ospite: false, prevista: 24000, versata: 24000, note: '' },
-      { nome: 'Paolo',    cognome: 'Gialli',   nascita: '1998-06-30', tel: '3662233445',
-        livello: 'MEMBRO', attivo: true, porto: '2029-04-10',
-        ruoli: ['CACCIATORE'], ospite: true, prevista: 0, versata: 0,
-        note: 'Ospite: nessuna quota prevista.' },
-      { nome: 'Sergio',   cognome: 'Blu',      nascita: '1958-09-05', tel: '3391112233',
-        livello: 'MEMBRO', attivo: false, porto: '2026-07-31',
-        ruoli: ['MEMBRO_SQUADRA'], ospite: false, prevista: 24000, versata: 0,
-        note: 'Non partecipa a questa stagione.' }
+      { nome: 'Stefano',       cognome: 'Bianchi',     ruoli: PO,
+        livello: 'AMMINISTRATORE', nascita: '1975-05-27', tel: '347-6986663',
+        porto: '2027-10-15', versata: 0 },
+      { nome: 'Pier',          cognome: 'Nolli',       ruoli: CS,
+        livello: 'MEMBRO', nascita: null, tel: '334-9876543',
+        porto: '2026-08-20', versata: 24000 },
+      { nome: 'Luca',          cognome: 'Malcotti',    ruoli: CS,
+        livello: 'AMMINISTRATORE', nascita: '1975-01-07', tel: '335-1122334',
+        porto: '2028-01-10', versata: 24000 },
+      { nome: 'Davide',        cognome: 'Zanotti',     ruoli: CS,
+        livello: 'MEMBRO', nascita: null, tel: '338-5544332',
+        porto: '2026-11-05', versata: 0 },
+      { nome: 'Roberto',       cognome: 'Dido',        ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: '339-9988776',
+        porto: '2027-09-30', versata: 24000 },
+      { nome: 'Cristian',      cognome: 'Cerlini',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: '333-7772356',
+        porto: '2029-06-26', versata: 24000 },
+      { nome: 'Adriano',       cognome: 'De Giorgis',  ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 24000 },
+      { nome: 'Antonio',       cognome: 'Rinaldi',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Cesare',        cognome: 'Bettini',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Federico',      cognome: 'Tonetti',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Francesco',     cognome: 'Ferrari',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Gabriele',      cognome: 'Beltrami',    ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Giuseppe',      cognome: 'Olivari',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Lele',          cognome: 'Pinco',       ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Luciano',       cognome: 'Boretti',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Marco',         cognome: 'Mora',        ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Massimiliano',  cognome: 'Manganelli',  ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Pierangelo',    cognome: 'Cottini',     ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Renato',        cognome: 'Borri',       ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Simone',        cognome: 'Agrati',      ruoli: PO,
+        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
+      { nome: 'Alessandro',    cognome: 'Zanetta',     ruoli: PO,
+        livello: 'AMMINISTRATORE', nascita: null, tel: null, porto: null, versata: 0 }
     ];
 
     var membri = [];
     var iscrizioni = [];
 
     persone.forEach(function (p) {
-      var idMembro = App.core.id.nuovo(App.core.id.MEMBRO);
+      var idNuovoMembro = App.core.id.nuovo(App.core.id.MEMBRO);
       membri.push(App.data.repo.timbraCreazione({
-        id: idMembro,
+        id: idNuovoMembro,
         squadraId: idSquadra,
         nome: p.nome,
         cognome: p.cognome,
         dataNascita: p.nascita,
         telefono: p.tel,
-        note: p.note,
+        note: '',
         livelloAccessoApp: p.livello,
-        attivo: p.attivo,
+        attivo: true,
         scadenzaPortoArmi: p.porto,
-        demo: true
+        demo: false
       }));
       iscrizioni.push(App.core.stagione.nuovaIscrizione({
         stagioneId: idStagione,
-        membroId: idMembro,
+        membroId: idNuovoMembro,
         ruoliVenatori: p.ruoli,
-        ospite: p.ospite,
-        quotaAnnualePrevistaCent: p.prevista,
+        ospite: false,
+        quotaAnnualePrevistaCent: quotaPredefinitaCent,
         quotaVersataCent: p.versata,
-        demo: true
+        demo: false
       }));
     });
 
-    // --- Giornate di caccia (Fase 2) ---
-    // Date relative a oggi, cosi' i dati demo restano sensati nel tempo:
-    // due gia' passate e completate, due future programmate, una annullata.
+    // ---------- da qui in poi: SOLO DATI FITTIZI (demo:true) ----------
+    // Date relative a oggi, cosi' restano sensate col passare del tempo.
     function dataRelativa(giorni) {
       var d = new Date();
       d.setDate(d.getDate() + giorni);
       return App.core.calendario.oggi(d);
     }
-    function idMembro(cognome) {
-      var m = membri.filter(function (x) { return x.cognome === cognome; })[0];
+    function idMembro(nomeCompleto) {
+      var m = membri.filter(function (x) {
+        return (x.nome + ' ' + x.cognome) === nomeCompleto;
+      })[0];
       return m ? m.id : null;
     }
 
     var modelliGiornate = [
       { data: dataRelativa(-21), orario: '06:30', zona: 'Costa del Faggeto',
-        capocaccia: 'Rossi', stato: 'COMPLETATA', note: 'Battuta mattutina.',
-        presenze: { Rossi: 'PRESENTE', Bianchi: 'PRESENTE', Verdi: 'PRESENTE',
-                    Neri: 'LAVORO', Gialli: 'ASSENTE' } },
+        capocaccia: 'Pier Nolli', stato: 'COMPLETATA', note: 'Battuta mattutina.',
+        presenze: { 'Pier Nolli': 'PRESENTE', 'Luca Malcotti': 'PRESENTE',
+                    'Davide Zanotti': 'PRESENTE', 'Roberto Dido': 'LAVORO',
+                    'Stefano Bianchi': 'ASSENTE' } },
       { data: dataRelativa(-7), orario: '06:30', zona: 'Valle Scura',
-        capocaccia: 'Bianchi', stato: 'COMPLETATA', note: '',
-        presenze: { Rossi: 'PRESENTE', Bianchi: 'PRESENTE', Verdi: 'ASSENTE',
-                    Neri: 'PRESENTE' } },
+        capocaccia: 'Luca Malcotti', stato: 'COMPLETATA', note: '',
+        presenze: { 'Pier Nolli': 'PRESENTE', 'Luca Malcotti': 'PRESENTE',
+                    'Davide Zanotti': 'ASSENTE', 'Roberto Dido': 'PRESENTE' } },
       { data: dataRelativa(-3), orario: '07:00', zona: 'Pian dei Lupi',
         capocaccia: null, stato: 'ANNULLATA', note: 'Annullata per maltempo.',
         presenze: {} },
       { data: dataRelativa(4), orario: '06:30', zona: 'Costa del Faggeto',
-        capocaccia: 'Rossi', stato: 'PROGRAMMATA', note: '',
-        presenze: { Rossi: 'PRESENTE', Neri: 'LAVORO' } },
+        capocaccia: 'Pier Nolli', stato: 'PROGRAMMATA', note: '',
+        presenze: { 'Pier Nolli': 'PRESENTE', 'Roberto Dido': 'LAVORO' } },
       { data: dataRelativa(11), orario: '06:30', zona: 'Fosso Grande',
         capocaccia: null, stato: 'PROGRAMMATA', note: 'Capocaccia da assegnare.',
         presenze: {} }
@@ -133,38 +182,36 @@
         demo: true
       }));
       // I soci non elencati restano senza record: valgono NON_SEGNATO.
-      Object.keys(g.presenze).forEach(function (cognome) {
-        var mid = idMembro(cognome);
+      Object.keys(g.presenze).forEach(function (nomeCompleto) {
+        var mid = idMembro(nomeCompleto);
         if (!mid) return;
         presenze.push(App.data.repo.timbraCreazione({
           id: App.core.id.nuovo(App.core.id.PRESENZA),
           giornataId: idGiornata,
           membroId: mid,
-          stato: g.presenze[cognome],
+          stato: g.presenze[nomeCompleto],
           note: '',
           demo: true
         }));
       });
     });
 
-    // --- Registro capi (Fase 3) ---
-    // Legati alle due giornate completate, con due tiratori diversi,
-    // pesi con decimali e un capo annullato.
+    // Registro capi fittizio, sulle due giornate gia' completate.
     var completate = giornate.filter(function (g) { return g.stato === 'COMPLETATA'; });
     var modelliCapi = completate.length >= 2 ? [
-      { giornata: completate[0].id, tiratore: 'Rossi', sesso: 'MASCHIO',
+      { giornata: completate[0].id, tiratore: 'Pier Nolli', sesso: 'MASCHIO',
         pesoGrammi: 85500, classe: 'ADULTO', cane: 'Muta Diana',
         note: 'Verro adulto.', annullato: false },
-      { giornata: completate[0].id, tiratore: 'Verdi', sesso: 'FEMMINA',
+      { giornata: completate[0].id, tiratore: 'Davide Zanotti', sesso: 'FEMMINA',
         pesoGrammi: 62300, classe: 'ADULTO', cane: 'Fulmine',
         note: 'Scrofa.', annullato: false },
-      { giornata: completate[0].id, tiratore: 'Rossi', sesso: 'MASCHIO',
+      { giornata: completate[0].id, tiratore: 'Pier Nolli', sesso: 'MASCHIO',
         pesoGrammi: 31200, classe: 'SUBADULTO', cane: null,
         note: '', annullato: false },
-      { giornata: completate[1].id, tiratore: 'Bianchi', sesso: 'FEMMINA',
+      { giornata: completate[1].id, tiratore: 'Luca Malcotti', sesso: 'FEMMINA',
         pesoGrammi: 45000, classe: 'SUBADULTO', cane: 'Cane Thor',
         note: '', annullato: false },
-      { giornata: completate[1].id, tiratore: 'Bianchi', sesso: 'NON_DETERMINATO',
+      { giornata: completate[1].id, tiratore: 'Luca Malcotti', sesso: 'NON_DETERMINATO',
         pesoGrammi: 28000, classe: 'PICCOLO', cane: null,
         note: 'Registrato per errore, annullato.', annullato: true }
     ] : [];
@@ -192,9 +239,7 @@
       }));
     });
 
-    // --- Controlli sanitari (Fase 4) ---
-    // Non tutti i capi hanno un controllo: chi non ce l'ha risulta
-    // "Non registrato", che non e' uno stato memorizzato.
+    // Controlli sanitari fittizi: non tutti i capi ne hanno uno.
     var modelliControlli = [
       { indice: 0, stato: 'NEGATIVO_CONFORME', prelievo: -20, esito: -18,
         riferimento: 'TR-2026-014', note: 'Esito conforme.' },

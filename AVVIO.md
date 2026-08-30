@@ -1,4 +1,4 @@
-# Adrenalina — Fasi 1, 2, 3 e 4 (versione flat)
+# Adrenalina — Fasi 1, 2, 3 e 4
 
 Gestionale offline per la squadra di caccia al cinghiale "Adrenalina".
 HTML + CSS + JavaScript vanilla. Dati in IndexedDB, sul dispositivo.
@@ -40,39 +40,17 @@ Prima di farlo, esporta un backup da **Backup dati → Esporta dati**.
 
 ## Struttura
 
-Questa e' la **versione flat**: tutti i file stanno nella stessa cartella, senza
-sottocartelle, per poterla caricare su GitHub dal browser e pubblicarla con
-GitHub Pages. Il codice e' identico alla versione a cartelle: cambiano solo i
-percorsi in `index.html` e il riferimento al logo.
+    index.html            ordine di caricamento degli script
+    css/                  base, layout, componenti
+    js/config/            versione, costanti (ruoli, livelli, stati)
+    js/data/              accesso a IndexedDB (schema, db, repository)
+    js/core/              logica applicativa (id, quote, squadra, stagione, membro, backup)
+    js/ui/                interfaccia (router, componenti, viste)
+    js/seed/              dati demo
 
-    index.html                     ordine di caricamento degli script
-    base.css layout.css components.css
-    versione.js costanti.js        configurazione
-    schema.js db.js repo.js repo*.js       accesso a IndexedDB
-    id.js calendario.js quoteService.js squadraService.js stagioneService.js
-    membroService.js giornataService.js presenzaService.js capoService.js
-    sanitarioService.js backupService.js   logica applicativa
-    router.js componenti.js vista*.js      interfaccia
-    datiDemo.js                    dati demo
-    app.js                         avvio
-    adrenalina-logo.png favicon-32.png apple-touch-icon-180.png
-    icona-192.png icona-512.png    asset
-    harness.js esegui.js           test (mai caricati da index.html)
-
-La separazione fra interfaccia, logica e accesso ai dati resta quella di sempre:
-ora la esprimono i nomi dei file invece delle cartelle. Le dipendenze vanno in
-una sola direzione: viste -> servizi -> repository. Le viste non toccano mai
-IndexedDB. Per collegare in futuro un backend si sostituiscono i file `repo*.js`
-con un client HTTP che espone le stesse firme, senza toccare servizi e viste.
-
-## Pubblicazione su GitHub Pages
-
-Carica tutti i file nella radice del repository, poi:
-Settings -> Pages -> Source: Deploy from a branch -> Branch: main, cartella `/ (root)`.
-L'app sara' raggiungibile su `https://TUO-UTENTE.github.io/NOME-REPO/`.
-Attenzione: pubblicata cosi' e' visibile a chiunque abbia l'indirizzo.
-I dati restano comunque solo sul dispositivo di chi la apre.
-Non caricare mai i file JSON di backup: contengono i dati personali dei soci.
+Le dipendenze vanno in una sola direzione: `ui/` → `core/` → `data/`.
+Le viste non toccano mai IndexedDB. Per collegare in futuro un backend si sostituisce
+`js/data/` con un client HTTP che espone le stesse firme, senza toccare `core/` e `ui/`.
 
 ## Primo avvio e ripartenza
 
@@ -193,10 +171,10 @@ l'importazione si ferma e i dati esistenti restano come sono.
 ## Test automatici
 
 I test girano con Node e non fanno parte dell'app: `index.html` non carica mai
-`harness.js` ne' `esegui.js`.
+nulla dalla cartella `test/`.
 
     npm i jsdom fake-indexeddb
-    node esegui.js
+    node test/esegui.js
 
 Coprono modello dati, quote, ID, soci, stagioni, giornate, presenze, registro
 capi, controlli sanitari, migrazioni di database e di backup, persistenza,

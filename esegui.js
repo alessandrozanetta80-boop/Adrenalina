@@ -51,13 +51,16 @@ function normalizza(dati) {
     assert.ok(dom.window.document.body.textContent.includes('Adrenalina'));
   });
 
-  await prova('7a. Conteggi Home su dati demo (5 attivi, 2 pagate, 2 da incassare)', async () => {
-    const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
-    assert.ok(t.includes('5Membri attivi'), 'membri attivi errati: ' + t);
-    assert.ok(t.includes('2 pagate'), 'quote pagate errate: ' + t);
-    assert.ok(t.includes('2Quote da incassare'), 'quote da incassare errate: ' + t);
-    assert.ok(t.includes('380,00 €'), 'residuo totale errato: ' + t);
-  });
+  await prova('7a. Conteggi Home sull\'anagrafica reale (21 attivi, 5 pagate, 16 da incassare)',
+    async () => {
+      const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
+      assert.ok(t.includes('21Membri attivi'), 'membri attivi errati: ' + t);
+      assert.ok(t.includes('5 pagate'), 'quote pagate errate: ' + t);
+      assert.ok(t.includes('16Quote da incassare'), 'quote da incassare errate: ' + t);
+      // 16 soci x 240,00 € = 3.840,00 €; il separatore delle migliaia
+      // dipende dalla locale del motore, quindi si accetta con o senza punto.
+      assert.ok(/3\.?840,00 €/.test(t), 'residuo totale errato: ' + t);
+    });
 
   // ---------------------------------------------------------------- stati quota
   console.log('\n[Stato quota derivato]');
@@ -119,7 +122,7 @@ function normalizza(dati) {
     const d2 = await H.avviaApp(discoIsolato, { senzaRandomUUID: true });
     assert.strictEqual(typeof d2.window.crypto.randomUUID, 'undefined');
     const dati = await d2.window.App.data.repo.leggiStore(['membri']);
-    assert.strictEqual(dati.membri.length, 6, 'seed non eseguito senza randomUUID');
+    assert.strictEqual(dati.membri.length, 21, 'seed non eseguito senza randomUUID');
     dati.membri.forEach((m) => assert.ok(/^mbr_[0-9a-f-]{36}$/.test(m.id), 'ID malformato: ' + m.id));
     d2.window.close();
   });
@@ -224,9 +227,9 @@ function normalizza(dati) {
   await prova('7b. Conteggi Home aggiornati dopo le modifiche', async () => {
     await H.vaiA(dom, '#/home', 'Membri attivi');
     const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
-    assert.ok(t.includes('6Membri attivi'), 'attivi: ' + t);
-    assert.ok(t.includes('3 pagate'), 'pagate: ' + t);
-    assert.ok(t.includes('2Quote da incassare'), 'da incassare: ' + t);
+    assert.ok(t.includes('22Membri attivi'), 'attivi: ' + t);
+    assert.ok(t.includes('6 pagate'), 'pagate: ' + t);
+    assert.ok(t.includes('16Quote da incassare'), 'da incassare: ' + t);
   });
 
   // ---------------------------------------------------------------- stagioni
@@ -311,7 +314,7 @@ function normalizza(dati) {
     await H.vaiA(dom, '#/home', 'Stagione attiva');
     const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
     assert.ok(t.includes('2026/2027'), 'home non mostra la stagione riattivata');
-    assert.ok(t.includes('3 pagate'), 'conteggi non tornati a quelli del 2026/2027: ' + t);
+    assert.ok(t.includes('6 pagate'), 'conteggi non tornati a quelli del 2026/2027: ' + t);
 
     const d = await leggiTutto(dom);
     const ora = JSON.stringify(d.iscrizioni.filter((i) => i.stagioneId === idStagione1)
@@ -338,8 +341,8 @@ function normalizza(dati) {
     domCorrente = dom;
     const d = await leggiTutto(dom);
     assert.strictEqual(normalizza(d), istantaneaPrimaDelRefresh, 'dati persi alla riapertura');
-    assert.strictEqual(d.membri.filter((m) => m.cognome === 'Rossi').length, 1,
-      'dati demo reinseriti una seconda volta');
+    assert.strictEqual(d.membri.filter((m) => m.cognome === 'Zanetta').length, 1,
+      'anagrafica reinserita una seconda volta');
     assert.ok(dom.window.document.body.textContent.includes('2026/2027'),
       'stagione attiva non ripristinata');
   });
@@ -373,26 +376,26 @@ function normalizza(dati) {
       dom.window.document.body.textContent.includes('Backup esportato'), 'toast di esportazione');
   });
 
-  await prova('11a. Eliminazione dati di prova BLOCCATA se lascerebbe record orfani', async () => {
+  await prova('11a. I dati di prova sono solo quelli di caccia, mai l\'anagrafica', async () => {
     const ant = await dom.window.App.core.backup.anteprimaEliminazioneDemo();
-    assert.strictEqual(ant.puoProcedere, false,
-      'l\'analisi non ha rilevato che il socio reale resterebbe orfano');
-    assert.ok(ant.problemi.length > 0);
-    assert.ok(ant.problemi.join(' ').includes('Stefano Conti'), ant.problemi.join(' | '));
+    // Squadra, stagione, soci e iscrizioni sono reali: non vengono mai contati
+    // fra i dati di prova, nemmeno dopo aver aggiunto un socio dall'app.
+    assert.strictEqual(ant.conteggi.squadre, 0, 'la squadra reale risulta demo');
+    assert.strictEqual(ant.conteggi.stagioni, 0, 'la stagione reale risulta demo');
+    assert.strictEqual(ant.conteggi.membri, 0, 'dei soci reali risultano demo');
+    assert.strictEqual(ant.conteggi.iscrizioni, 0, 'delle iscrizioni reali risultano demo');
+    assert.ok(ant.conteggi.giornate > 0 && ant.conteggi.presenze > 0 &&
+      ant.conteggi.abbattimenti > 0 && ant.conteggi.controlliSanitari > 0,
+      'i dati di caccia non risultano demo');
 
-    let bloccato = false;
-    try { await dom.window.App.core.backup.eliminaDatiDemo(); }
-    catch (e) { bloccato = true; }
-    assert.ok(bloccato, 'l\'eliminazione non è stata bloccata');
-
-    const d = await leggiTutto(dom);
-    assert.strictEqual(normalizza(d), istantaneaPrimaDelRefresh,
-      'sono stati eliminati record nonostante il blocco');
-    // il pulsante deve risultare disabilitato nella schermata
+    assert.strictEqual(ant.puoProcedere, true,
+      'eliminazione bloccata senza motivo: ' + ant.problemi.join(' | '));
     await H.vaiA(dom, '#/backup', 'Elimina dati di prova');
-    assert.ok(H.$(dom, '#btn-demo').disabled, 'pulsante non disabilitato');
-    assert.ok(dom.window.document.body.textContent.includes('Eliminazione non possibile'),
-      'avviso non mostrato');
+    assert.ok(!H.$(dom, '#btn-demo').disabled, 'pulsante disabilitato senza motivo');
+
+    // nulla e' stato eliminato: qui si e' solo guardato
+    assert.strictEqual(normalizza(await leggiTutto(dom)), istantaneaPrimaDelRefresh,
+      'l\'anteprima ha modificato i dati');
   });
 
   await prova('12. Reimportazione JSON dopo svuotamento totale', async () => {
@@ -422,7 +425,7 @@ function normalizza(dati) {
     domCorrente = dom;
     const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
     assert.ok(t.includes('2026/2027'), 'stagione attiva persa: ' + t);
-    assert.ok(t.includes('6Membri attivi'), 'conteggi errati dopo import: ' + t);
+    assert.ok(t.includes('22Membri attivi'), 'conteggi errati dopo import: ' + t);
   });
 
   await prova('12b. Un backup non valido viene rifiutato senza toccare i dati', async () => {
@@ -442,55 +445,72 @@ function normalizza(dati) {
 
   // ---------------------------------------------------------------- demo su installazione pulita
   console.log('\n[Eliminazione dati di prova su installazione pulita]');
-  await prova('11b. Eliminazione dati di prova su app con soli dati demo', async () => {
+  await prova('11b. Elimina dati di prova: resta l\'anagrafica, spariscono i dati di caccia',
+    async () => {
     const discoPulito = H.nuovoDisco();
     const d3 = await H.avviaApp(discoPulito);
     await H.vaiA(d3, '#/backup', 'Elimina dati di prova');
     assert.ok(!H.$(d3, '#btn-demo').disabled, 'pulsante disabilitato senza motivo');
     H.clic(d3, '#btn-demo');
     await H.confermaModale(d3, true);
-    await H.attesa(d3, () =>
-      d3.window.document.body.textContent.includes('Configurazione iniziale'),
-      'schermata di configurazione iniziale');
-    assert.strictEqual(d3.window.location.hash, '#/configurazione',
-      'non e\' stata raggiunta la configurazione iniziale');
+    await H.attesa(d3, () => d3.window.location.hash === '#/home', 'ritorno alla Home');
+    await H.pausa(d3, 80);
 
     const dati = await d3.window.App.data.repo.leggiStore(
-      ['squadre', 'stagioni', 'membri', 'iscrizioni', 'meta']);
-    assert.strictEqual(dati.squadre.length, 0);
-    assert.strictEqual(dati.stagioni.length, 0);
-    assert.strictEqual(dati.membri.length, 0);
-    assert.strictEqual(dati.iscrizioni.length, 0);
+      d3.window.App.data.schema.nomiStoreBackup);
+    // RESTA: squadra, stagione, 21 soci, 21 iscrizioni con le quote reali
+    assert.strictEqual(dati.squadre.length, 1, 'squadra reale eliminata');
+    assert.strictEqual(dati.squadre[0].nome, 'Adrenalina');
+    assert.strictEqual(dati.stagioni.length, 1, 'stagione reale eliminata');
+    assert.strictEqual(dati.stagioni[0].nome, '2026/2027');
+    assert.strictEqual(dati.membri.length, 21, 'soci reali eliminati');
+    assert.strictEqual(dati.iscrizioni.length, 21, 'iscrizioni reali eliminate');
+    const pagate = dati.iscrizioni.filter((i) => i.quotaVersataCent === 24000).length;
+    assert.strictEqual(pagate, 5, 'quote reali alterate');
+    // VIENE ELIMINATO: tutto il resto
+    assert.strictEqual(dati.giornate.length, 0, 'giornate demo non eliminate');
+    assert.strictEqual(dati.presenze.length, 0, 'presenze demo non eliminate');
+    assert.strictEqual(dati.abbattimenti.length, 0, 'abbattimenti demo non eliminati');
+    assert.strictEqual(dati.controlliSanitari.length, 0, 'controlli demo non eliminati');
+
+    // e la Home resta usabile con i dati reali
+    const t = d3.window.document.body.textContent.replace(/\s+/g, ' ');
+    assert.ok(t.includes('21Membri attivi'), 'Home incoerente dopo la pulizia: ' + t);
+    assert.ok(t.includes('0Giornate'), 'giornate ancora contate: ' + t);
+    assert.ok(t.includes('0Capi stagione'), 'capi ancora contati: ' + t);
+
     const flag = dati.meta.filter((m) => m.chiave === 'datiDemoPresenti')[0];
     assert.strictEqual(flag.valore, false, 'flag datiDemoPresenti non aggiornato');
     d3.window.close();
   });
 
-  await prova('11c. L\'eliminazione demo non tocca mai i record reali', async () => {
+  await prova('11c. Un socio aggiunto dall\'app sopravvive alla pulizia dei demo', async () => {
     const discoMisto = H.nuovoDisco();
     const d4 = await H.avviaApp(discoMisto);
     const A = d4.window.App;
-    // squadra reale, indipendente da quella demo
-    const sq = A.data.repo.timbraCreazione({
-      id: A.core.id.nuovo(A.core.id.SQUADRA), nome: 'Reale', stagioneAttivaId: null, demo: false
-    });
-    const mb = A.data.repo.timbraCreazione({
-      id: A.core.id.nuovo(A.core.id.MEMBRO), squadraId: sq.id, nome: 'Vera', cognome: 'Persona',
-      dataNascita: null, telefono: null, note: '', livelloAccessoApp: 'MEMBRO',
-      attivo: true, scadenzaPortoArmi: null, demo: false
-    });
-    await A.data.repo.scrivi(['squadre', 'membri'], (t) => {
-      t.put('squadre', sq); t.put('membri', mb);
+    const r = await A.core.membro.creaSocio({
+      nome: 'Nuovo', cognome: 'Aggiunto', dataNascita: null, telefono: null, note: '',
+      livelloAccessoApp: 'MEMBRO', attivo: true, scadenzaPortoArmi: null,
+      ruoliVenatori: ['POSTAIOLO'], ospite: false,
+      quotaAnnualePrevistaCent: 24000, quotaVersataCent: 12000
     });
 
-    const r = await A.core.backup.eliminaDatiDemo();
-    assert.ok(r.totale > 0, 'niente eliminato');
-    const dati = await A.data.repo.leggiStore(['squadre', 'stagioni', 'membri', 'iscrizioni']);
-    assert.strictEqual(dati.squadre.length, 1, 'squadra reale non conservata');
-    assert.strictEqual(dati.squadre[0].nome, 'Reale');
-    assert.strictEqual(dati.membri.length, 1, 'membro reale non conservato');
-    assert.strictEqual(dati.membri[0].cognome, 'Persona');
-    assert.strictEqual(dati.iscrizioni.length, 0, 'iscrizioni demo non eliminate');
+    const esito = await A.core.backup.eliminaDatiDemo();
+    assert.ok(esito.totale > 0, 'niente eliminato');
+
+    const dati = await A.data.repo.leggiStore(
+      ['squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
+       'abbattimenti', 'controlliSanitari']);
+    assert.strictEqual(dati.membri.length, 22, 'soci persi nella pulizia');
+    const nuovo = dati.membri.filter((m) => m.id === r.membro.id)[0];
+    assert.ok(nuovo, 'il socio aggiunto e\' stato eliminato');
+    const isc = dati.iscrizioni.filter((i) => i.membroId === r.membro.id)[0];
+    assert.ok(isc, 'iscrizione del socio aggiunto eliminata');
+    assert.strictEqual(isc.quotaVersataCent, 12000, 'quota del socio aggiunto alterata');
+    // e i dati di caccia sono spariti tutti
+    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
+      assert.strictEqual(dati[n].length, 0, 'store non svuotato: ' + n);
+    });
     d4.window.close();
   });
 
@@ -1373,27 +1393,33 @@ function normalizza(dati) {
 
     const r = await A.core.backup.eliminaDatiDemo();
     assert.ok(r.eliminati.giornate > 0 && r.eliminati.presenze > 0);
-    const d = await A.data.repo.leggiStore(
-      ['squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze']);
-    Object.keys(d).forEach((n) => {
-      assert.strictEqual(d[n].length, 0, 'store non svuotato: ' + n);
+    const dati = await A.data.repo.leggiStore(A.data.schema.nomiStoreDemo);
+    // L'anagrafica reale resta, i dati di caccia fittizi spariscono.
+    assert.strictEqual(dati.squadre.length, 1, 'squadra reale eliminata');
+    assert.strictEqual(dati.stagioni.length, 1, 'stagione reale eliminata');
+    assert.strictEqual(dati.membri.length, 21, 'soci reali eliminati');
+    assert.strictEqual(dati.iscrizioni.length, 21, 'iscrizioni reali eliminate');
+    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
+      assert.strictEqual(dati[n].length, 0, 'store non svuotato: ' + n);
     });
     dE.window.close();
   });
 
-  await prova('D3. Eliminazione demo bloccata se una giornata reale usa dati demo', async () => {
+  await prova('D3. Eliminazione demo bloccata se una presenza reale usa una giornata demo',
+    async () => {
     const discoMisto = H.nuovoDisco();
     const dF = await H.avviaApp(discoMisto);
     const A = dF.window.App;
-    // giornata reale dentro la stagione demo
-    await A.core.giornata.crea({
-      data: '2027-01-10', orarioRitrovo: '06:30', zona: 'Zona reale',
-      capocacciaMembroId: null, note: '', stato: 'PROGRAMMATA'
-    });
+    // presenza reale registrata dall'app su una giornata dimostrativa
+    const g = (await A.data.giornate.tutte())
+      .filter((x) => x.stato === 'PROGRAMMATA')[0];
+    const isc = await A.data.iscrizioni.perStagione(g.stagioneId);
+    await A.core.presenza.imposta(g.id, isc[0].membroId, 'PRESENTE');
+
     const prima = normalizza(await A.data.repo.leggiStore(A.data.schema.nomiStoreBackup));
     const ant = await A.core.backup.anteprimaEliminazioneDemo();
     assert.strictEqual(ant.puoProcedere, false, 'eliminazione non bloccata');
-    assert.ok(ant.problemi.join(' ').toLowerCase().includes('giornata reale'),
+    assert.ok(ant.problemi.join(' ').toLowerCase().includes('presenza reale'),
       ant.problemi.join(' | '));
 
     let ko = false;
@@ -2502,7 +2528,12 @@ function normalizza(dati) {
     const r = await A.core.backup.eliminaDatiDemo();
     assert.ok(r.eliminati.abbattimenti > 0, 'capi demo non eliminati');
     const dati = await A.data.repo.leggiStore(A.data.schema.nomiStoreDemo);
-    Object.keys(dati).forEach((n) => {
+    // L'anagrafica reale resta, i dati di caccia fittizi spariscono.
+    assert.strictEqual(dati.squadre.length, 1, 'squadra reale eliminata');
+    assert.strictEqual(dati.stagioni.length, 1, 'stagione reale eliminata');
+    assert.strictEqual(dati.membri.length, 21, 'soci reali eliminati');
+    assert.strictEqual(dati.iscrizioni.length, 21, 'iscrizioni reali eliminate');
+    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
       assert.strictEqual(dati[n].length, 0, 'store non svuotato: ' + n);
     });
     d.window.close();
@@ -3245,7 +3276,12 @@ function normalizza(dati) {
     const r = await A.core.backup.eliminaDatiDemo();
     assert.ok(r.eliminati.controlliSanitari > 0, 'controlli demo non eliminati');
     const dati = await A.data.repo.leggiStore(A.data.schema.nomiStoreDemo);
-    Object.keys(dati).forEach((n) => {
+    // L'anagrafica reale resta, i dati di caccia fittizi spariscono.
+    assert.strictEqual(dati.squadre.length, 1, 'squadra reale eliminata');
+    assert.strictEqual(dati.stagioni.length, 1, 'stagione reale eliminata');
+    assert.strictEqual(dati.membri.length, 21, 'soci reali eliminati');
+    assert.strictEqual(dati.iscrizioni.length, 21, 'iscrizioni reali eliminate');
+    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
       assert.strictEqual(dati[n].length, 0, 'store non svuotato: ' + n);
     });
     d.window.close();
@@ -3277,6 +3313,178 @@ function normalizza(dati) {
     assert.strictEqual(normalizza(await A.data.repo.leggiStore(A.data.schema.nomiStoreBackup)),
       prima, 'dati modificati nonostante il blocco');
     d.window.close();
+  });
+
+  // ---------------------------------------------------------------- anagrafica reale
+  console.log('\n[Anagrafica reale della squadra]');
+
+  const NOMI_REALI = [
+    'Stefano Bianchi', 'Pier Nolli', 'Luca Malcotti', 'Davide Zanotti',
+    'Roberto Dido', 'Cristian Cerlini', 'Adriano De Giorgis', 'Antonio Rinaldi',
+    'Cesare Bettini', 'Federico Tonetti', 'Francesco Ferrari', 'Gabriele Beltrami',
+    'Giuseppe Olivari', 'Lele Pinco', 'Luciano Boretti', 'Marco Mora',
+    'Massimiliano Manganelli', 'Pierangelo Cottini', 'Renato Borri',
+    'Simone Agrati', 'Alessandro Zanetta'
+  ];
+  const AMMINISTRATORI = ['Alessandro Zanetta', 'Stefano Bianchi', 'Luca Malcotti'];
+  const CON_DUE_RUOLI = ['Pier Nolli', 'Luca Malcotti', 'Davide Zanotti'];
+
+  async function appReale() {
+    const disco = H.nuovoDisco();
+    const d = await H.avviaApp(disco);
+    const A = d.window.App;
+    const dati = await A.data.repo.leggiStore(A.data.schema.nomiStoreBackup);
+    const perNome = {};
+    dati.membri.forEach((m) => { perNome[(m.nome + ' ' + m.cognome).trim()] = m; });
+    return { dom: d, A, dati, perNome };
+  }
+
+  await prova('Y1. I 21 soci reali sono presenti, con squadra e stagione reali', async () => {
+    const c = await appReale();
+    assert.strictEqual(c.dati.membri.length, 21,
+      'attesi 21 soci, trovati ' + c.dati.membri.length);
+    NOMI_REALI.forEach((n) => assert.ok(c.perNome[n], 'socio mancante: ' + n));
+    c.dati.membri.forEach((m) => {
+      assert.strictEqual(m.demo, false, 'socio marcato demo: ' + m.cognome);
+      assert.strictEqual(m.attivo, true, 'socio non attivo: ' + m.cognome);
+    });
+    assert.strictEqual(c.dati.squadre.length, 1);
+    assert.strictEqual(c.dati.squadre[0].nome, 'Adrenalina');
+    assert.strictEqual(c.dati.squadre[0].demo, false, 'squadra marcata demo');
+    assert.strictEqual(c.dati.stagioni.length, 1);
+    assert.strictEqual(c.dati.stagioni[0].nome, '2026/2027');
+    assert.strictEqual(c.dati.stagioni[0].demo, false, 'stagione marcata demo');
+    assert.strictEqual(c.dati.stagioni[0].quotaAnnualePredefinitaCent, 24000);
+    c.dom.window.close();
+  });
+
+  await prova('Y2. Tre amministratori, tutti gli altri membri', async () => {
+    const c = await appReale();
+    AMMINISTRATORI.forEach((n) => {
+      assert.strictEqual(c.perNome[n].livelloAccessoApp, 'AMMINISTRATORE',
+        n + ' non e\' amministratore');
+    });
+    NOMI_REALI.filter((n) => AMMINISTRATORI.indexOf(n) === -1).forEach((n) => {
+      assert.strictEqual(c.perNome[n].livelloAccessoApp, 'MEMBRO',
+        n + ' dovrebbe essere MEMBRO');
+    });
+    const amministratori = c.dati.membri
+      .filter((m) => m.livelloAccessoApp === 'AMMINISTRATORE').length;
+    assert.strictEqual(amministratori, 3, 'amministratori: ' + amministratori);
+    const gestori = c.dati.membri.filter((m) => m.livelloAccessoApp === 'GESTORE').length;
+    assert.strictEqual(gestori, 0, 'assegnato un livello GESTORE non richiesto');
+    c.dom.window.close();
+  });
+
+  await prova('Y3. Caposquadra + Canaro per Nolli, Malcotti e Zanotti', async () => {
+    const c = await appReale();
+    const idStagione = c.dati.stagioni[0].id;
+    const perMembro = {};
+    c.dati.iscrizioni.forEach((i) => {
+      if (i.stagioneId === idStagione) perMembro[i.membroId] = i;
+    });
+    CON_DUE_RUOLI.forEach((n) => {
+      const isc = perMembro[c.perNome[n].id];
+      assert.ok(isc, 'iscrizione mancante per ' + n);
+      assert.strictEqual(isc.ruoliVenatori.slice().sort().join(','), 'CANARO,CAPOSQUADRA',
+        n + ' non ha CAPOSQUADRA + CANARO: ' + isc.ruoliVenatori.join(','));
+    });
+    NOMI_REALI.filter((n) => CON_DUE_RUOLI.indexOf(n) === -1).forEach((n) => {
+      const isc = perMembro[c.perNome[n].id];
+      assert.strictEqual(isc.ruoliVenatori.join(','), 'POSTAIOLO',
+        n + ' dovrebbe essere solo POSTAIOLO');
+    });
+    c.dom.window.close();
+  });
+
+  await prova('Y4. 21 iscrizioni reali con le quote fornite', async () => {
+    const c = await appReale();
+    assert.strictEqual(c.dati.iscrizioni.length, 21);
+    c.dati.iscrizioni.forEach((i) => {
+      assert.strictEqual(i.quotaAnnualePrevistaCent, 24000, 'quota prevista errata');
+    });
+    const pagate = ['Pier Nolli', 'Luca Malcotti', 'Roberto Dido',
+      'Cristian Cerlini', 'Adriano De Giorgis'];
+    const perMembro = {};
+    c.dati.iscrizioni.forEach((i) => { perMembro[i.membroId] = i; });
+    pagate.forEach((n) => {
+      assert.strictEqual(perMembro[c.perNome[n].id].quotaVersataCent, 24000,
+        n + ' dovrebbe risultare in regola');
+    });
+    NOMI_REALI.filter((n) => pagate.indexOf(n) === -1).forEach((n) => {
+      assert.strictEqual(perMembro[c.perNome[n].id].quotaVersataCent, 0,
+        n + ': quota versata inventata');
+    });
+    c.dom.window.close();
+  });
+
+  await prova('Y5. I dati non forniti restano vuoti: nulla e\' stato inventato', async () => {
+    const c = await appReale();
+    // date di nascita: solo le due note
+    const conNascita = c.dati.membri.filter((m) => m.dataNascita);
+    assert.strictEqual(conNascita.length, 2,
+      'date di nascita presenti: ' + conNascita.map((m) => m.cognome).join(', '));
+    assert.strictEqual(c.perNome['Stefano Bianchi'].dataNascita, '1975-05-27');
+    assert.strictEqual(c.perNome['Luca Malcotti'].dataNascita, '1975-01-07');
+
+    // telefoni: solo i sei noti
+    const conTelefono = c.dati.membri.filter((m) => m.telefono);
+    assert.strictEqual(conTelefono.length, 6,
+      'telefoni presenti: ' + conTelefono.map((m) => m.cognome).join(', '));
+    assert.strictEqual(c.perNome['Stefano Bianchi'].telefono, '347-6986663');
+    assert.strictEqual(c.perNome['Cristian Cerlini'].telefono, '333-7772356');
+
+    // porto d'armi: solo le sei scadenze note
+    const conPorto = c.dati.membri.filter((m) => m.scadenzaPortoArmi);
+    assert.strictEqual(conPorto.length, 6,
+      'scadenze presenti: ' + conPorto.map((m) => m.cognome).join(', '));
+    assert.strictEqual(c.perNome['Pier Nolli'].scadenzaPortoArmi, '2026-08-20');
+    assert.strictEqual(c.perNome['Cristian Cerlini'].scadenzaPortoArmi, '2029-06-26');
+
+    // per tutti gli altri i campi sono null, non stringhe vuote inventate
+    ['Antonio Rinaldi', 'Renato Borri', 'Alessandro Zanetta'].forEach((n) => {
+      assert.strictEqual(c.perNome[n].dataNascita, null, n + ': nascita inventata');
+      assert.strictEqual(c.perNome[n].telefono, null, n + ': telefono inventato');
+      assert.strictEqual(c.perNome[n].scadenzaPortoArmi, null, n + ': porto inventato');
+    });
+    c.dom.window.close();
+  });
+
+  await prova('Y6. I dati di caccia restano fittizi e riferiti ai soci reali', async () => {
+    const c = await appReale();
+    const idReali = {};
+    c.dati.membri.forEach((m) => { idReali[m.id] = true; });
+
+    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
+      assert.ok(c.dati[n].length > 0, 'nessun dato dimostrativo in ' + n);
+      c.dati[n].forEach((r) => {
+        assert.strictEqual(r.demo, true, 'record non marcato demo in ' + n);
+      });
+    });
+
+    // ogni riferimento a una persona punta a un socio reale esistente
+    c.dati.giornate.forEach((g) => {
+      if (g.capocacciaMembroId) {
+        assert.ok(idReali[g.capocacciaMembroId], 'capocaccia inesistente');
+      }
+    });
+    c.dati.presenze.forEach((p) => assert.ok(idReali[p.membroId], 'presenza orfana'));
+    c.dati.abbattimenti.forEach((a) => assert.ok(idReali[a.tiratoreMembroId], 'tiratore orfano'));
+
+    // e il backup resta valido
+    const b = await c.A.core.backup.costruisciBackup();
+    const err = c.A.core.backup.validaBackup(b);
+    assert.strictEqual(err.length, 0, 'dati non validi: ' + err.join(' | '));
+    c.dom.window.close();
+  });
+
+  await prova('Y7. L\'elenco soci mostra i 21 nomi reali', async () => {
+    const c = await appReale();
+    await H.vaiA(c.dom, '#/soci', 'Aggiungi socio');
+    const t = c.dom.window.document.body.textContent;
+    NOMI_REALI.forEach((n) => assert.ok(t.includes(n), 'nome non in elenco: ' + n));
+    assert.ok(t.includes('Caposquadra / Canaro'), 'ruoli doppi non mostrati');
+    c.dom.window.close();
   });
 
   // ---------------------------------------------------------------- integrità modello
