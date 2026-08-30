@@ -726,3 +726,191 @@
   font-weight: 800;
   text-transform: uppercase;
 }
+
+/* --- Home semplificata --- */
+.strip-stagione {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  text-align: center;
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 12px 8px;
+  box-shadow: var(--ombra);
+}
+.strip-stagione .valore {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.strip-stagione .etichetta {
+  display: block;
+  font-size: .74rem;
+  font-weight: 600;
+  color: var(--testo-tenue);
+  line-height: 1.2;
+}
+
+.btn-nav-inattivo {
+  opacity: .55;
+  cursor: default;
+  border-left-color: var(--bordo);
+}
+
+.riga-quote {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+}
+.riga-quote .valore { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.riga-quote .etichetta { font-weight: 600; }
+.riga-quote .extra { flex: 1 1 100%; font-size: .8rem; color: var(--testo-tenue); }
+
+/* --- Partecipanti dentro la giornata --- */
+.conta-partecipanti {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--verde-chiaro);
+  border: 1px solid #cfe0d6;
+  border-left: 5px solid var(--verde);
+  border-radius: var(--raggio);
+}
+.conta-partecipanti .valore {
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.conta-partecipanti .totale { font-size: 1rem; font-weight: 600; color: var(--testo-tenue); }
+.conta-partecipanti .etichetta {
+  margin-left: auto;
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--verde);
+}
+
+.nota-piccola {
+  font-size: .76rem;
+  color: var(--testo-tenue);
+  margin: 6px 2px 10px;
+}
+
+.elenco-partecipanti {
+  display: grid;
+  gap: 4px;
+}
+
+/* Riga compatta: circa 60px, bersagli sempre almeno 48px. */
+.riga-partecipante {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio-sm);
+  overflow: hidden;
+}
+.riga-partecipante .tocco {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  padding: 6px 8px 6px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.riga-partecipante .segno {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--bordo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: .95rem;
+  color: var(--testo-tenue);
+}
+.riga-partecipante .chi { flex: 1 1 auto; min-width: 0; }
+.riga-partecipante .nome {
+  display: block;
+  font-weight: 650;
+  font-size: .98rem;
+  line-height: 1.2;
+}
+.riga-partecipante .ruoli {
+  display: block;
+  font-size: .74rem;
+  color: var(--testo-tenue);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.riga-partecipante .stato-testo {
+  flex: 0 0 auto;
+  font-size: .76rem;
+  font-weight: 700;
+  color: var(--testo-tenue);
+}
+.riga-partecipante .altro {
+  min-width: var(--tocco);
+  min-height: 60px;
+  border: 0;
+  border-left: 1px solid var(--bordo);
+  background: transparent;
+  color: var(--testo-tenue);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.riga-partecipante .altro:active { background: var(--neutro-sfondo); }
+
+.riga-partecipante.presente { border-color: var(--ok); background: var(--ok-sfondo); }
+.riga-partecipante.presente .segno { border-color: var(--ok); background: var(--ok); color: #fff; }
+.riga-partecipante.presente .stato-testo { color: var(--ok); }
+.riga-partecipante.assente { border-color: var(--pericolo); }
+.riga-partecipante.assente .segno { border-color: var(--pericolo); color: var(--pericolo); }
+.riga-partecipante.assente .stato-testo { color: var(--pericolo); }
+.riga-partecipante.lavoro { border-color: var(--avviso); }
+.riga-partecipante.lavoro .segno { border-color: var(--avviso); color: var(--avviso); }
+.riga-partecipante.lavoro .stato-testo { color: var(--avviso); }
+
+.riga-partecipante .altri-stati {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--bordo);
+  background: var(--neutro-sfondo);
+}
+.riga-partecipante .altri-stati[hidden] { display: none; }
+.riga-partecipante .altri-stati button {
+  min-height: var(--tocco);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio-sm);
+  background: var(--superficie);
+  font-size: .82rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.collegamento-tenue {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: .82rem;
+  color: var(--testo-tenue);
+}

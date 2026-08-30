@@ -41,7 +41,7 @@
       var righe = dati.righe;
 
       C.intestazione({
-        titolo: 'Presenze',
+        titolo: 'Partecipanti',
         sotto: V.giornoSettimana(g.data) + ' ' + C.formattaData(g.data) +
           (g.zona ? ' · ' + g.zona : ''),
         indietro: '#/giornata/' + g.id
@@ -85,8 +85,8 @@
           '<button class="btn btn-largo" data-vai="#/giornata/' + C.esc(g.id) +
           '">Torna alla giornata</button>' +
         '</div>' +
-        '<p class="nota-piede">Ogni tocco viene salvato subito. ' +
-        '"Non segnato" rimuove la registrazione del socio per questa giornata.</p>');
+        '<p class="nota-piede">Vista estesa dei partecipanti: ogni tocco viene salvato ' +
+        'subito. "Non segnato" rimuove la registrazione del socio per questa giornata.</p>');
 
       aggiornaContatori(righe);
 

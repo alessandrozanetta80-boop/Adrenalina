@@ -50,14 +50,6 @@
 
       var V = App.ui.viste.giornate;
 
-      function statCard(valore, etichetta, extra) {
-        return '<div class="card card-stat">' +
-          '<div class="valore">' + valore + '</div>' +
-          '<div class="etichetta">' + etichetta + '</div>' +
-          (extra ? '<div class="extra">' + extra + '</div>' : '') +
-        '</div>';
-      }
-
       function navCard(hash, titolo, secondario) {
         return '<button class="btn-nav" data-vai="' + hash + '">' +
           '<span class="voce">' + titolo + '</span>' +
@@ -65,6 +57,14 @@
             (secondario ? '<span class="dato">' + secondario + '</span>' : '') +
             '&#8250;' +
           '</span>' +
+        '</button>';
+      }
+
+      // Voce presente ma non ancora attiva: il modulo non esiste.
+      function navInattiva(titolo) {
+        return '<button class="btn-nav btn-nav-inattivo" disabled>' +
+          '<span class="voce">' + titolo + '</span>' +
+          '<span class="freccia"><span class="dato">Prossimamente</span></span>' +
         '</button>';
       }
 
@@ -89,7 +89,9 @@
         (prossima
           ? '<div class="sezione">' +
               '<div class="card-prossima">' +
-                '<div class="occhiello">Prossima giornata</div>' +
+                '<div class="occhiello">' +
+                  (String(prossima.data) === oggi ? 'Oggi' : 'Prossima giornata') +
+                '</div>' +
                 '<div class="quando">' +
                   C.esc(V.giornoSettimana(prossima.data)) + ' ' +
                   C.esc(C.formattaData(prossima.data)) +
@@ -111,34 +113,46 @@
             '</div>'
           : '') +
 
-        // --- C. riepilogo: quattro indicatori con lo stesso peso ---
+        // --- C. la stagione in tre numeri, senza card amministrative ---
         '<div class="sezione">' +
-          '<h3>Stagione in corso</h3>' +
-          '<div class="griglia-stat">' +
-            statCard(attivi.length, 'Membri attivi') +
-            statCard(giornateStagione.length, 'Giornate') +
-            statCard(numCapi, 'Capi stagione') +
-            statCard(riep.daIncassare, 'Quote da incassare',
-              C.esc(Q.formattaEuro(riep.residuoTotaleCent)) + ' · ' +
-              riep.pagate + ' pagate') +
+          '<div class="strip-stagione">' +
+            '<div><span class="valore">' + attivi.length + '</span>' +
+              '<span class="etichetta">Membri attivi</span></div>' +
+            '<div><span class="valore">' + giornateStagione.length + '</span>' +
+              '<span class="etichetta">Giornate</span></div>' +
+            '<div><span class="valore">' + numCapi + '</span>' +
+              '<span class="etichetta">Capi stagione</span></div>' +
+          '</div>' +
+        '</div>' +
+
+        // --- D. le quattro porte principali ---
+        '<div class="sezione">' +
+          '<div class="pila">' +
+            navCard('#/giornate', 'Giornate', giornateStagione.length + ' in stagione') +
+            navCard('#/soci', 'Squadra', attivi.length + ' attivi') +
+            navCard('#/abbattimenti', 'Abbattimenti', numCapi + ' capi') +
+            navInattiva('Cassa') +
+          '</div>' +
+        '</div>' +
+
+        // --- E. amministrazione, fuori dal percorso quotidiano ---
+        '<div class="sezione">' +
+          '<h3>Amministrazione</h3>' +
+          '<div class="pila">' +
+            '<div class="card riga-quote">' +
+              '<span class="valore">' + riep.daIncassare + '</span>' +
+              '<span class="etichetta">Quote da incassare</span>' +
+              '<span class="extra">' + C.esc(Q.formattaEuro(riep.residuoTotaleCent)) +
+                ' · ' + riep.pagate + ' pagate</span>' +
+            '</div>' +
+            navCard('#/stagioni', 'Stagioni', ctx.stagioni.length +
+              (ctx.stagioni.length === 1 ? ' stagione' : ' stagioni')) +
+            navCard('#/backup', 'Backup dati', '') +
           '</div>' +
           (nonIscritti
             ? '<p class="nota-piede">' + nonIscritti +
               ' socio/i attivo/i non ancora iscritto/i alla stagione attiva.</p>'
             : '') +
-        '</div>' +
-
-        // --- D. navigazione ---
-        '<div class="sezione">' +
-          '<h3>Gestione</h3>' +
-          '<div class="pila">' +
-            navCard('#/soci', 'Squadra', attivi.length + ' attivi') +
-            navCard('#/giornate', 'Giornate', giornateStagione.length + ' in stagione') +
-            navCard('#/abbattimenti', 'Abbattimenti', numCapi + ' capi') +
-            navCard('#/stagioni', 'Stagioni', ctx.stagioni.length +
-              (ctx.stagioni.length === 1 ? ' stagione' : ' stagioni')) +
-            navCard('#/backup', 'Backup dati', '') +
-          '</div>' +
         '</div>' +
 
         '<p class="nota-piede">Adrenalina v' + C.esc(App.versione.APP_VERSION) +

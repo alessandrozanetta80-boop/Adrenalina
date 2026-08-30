@@ -73,7 +73,7 @@
                     : 'Capocaccia da assegnare') +
                 '</span>' +
                 '<span class="presenti">' + r.presenti +
-                  ' present' + (r.presenti === 1 ? 'e' : 'i') + '</span>' +
+                  ' partecipant' + (r.presenti === 1 ? 'e' : 'i') + '</span>' +
               '</div>' +
             '</button>';
           }).join('') + '</div>'
