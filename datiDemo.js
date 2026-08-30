@@ -5,7 +5,7 @@
 
   // ATTENZIONE: questo file contiene DUE cose diverse.
   //
-  //   1. ANAGRAFICA REALE della squadra Adrenalina: squadra, stagione,
+  //   1. ANAGRAFICA della squadra Adrenalina: squadra, stagione,
   //      21 soci e le loro iscrizioni. Tutti con demo:false.
   //      Non vengono toccati da "Elimina dati di prova".
   //
@@ -18,7 +18,13 @@
   // nessuna giornata, presenza, abbattimento o controllo qui dentro
   // corrisponde a un fatto avvenuto.
   //
-  // I dati non forniti restano null: nulla e' stato inventato.
+  // VERSIONE PER DEMO PUBBLICA.
+  // Di ogni socio restano solo nome, cognome, ruoli venatori e livello di
+  // accesso. Telefono, data di nascita, scadenza del porto d'armi e note
+  // sono deliberatamente vuoti: i campi esistono nel modello e nei form,
+  // ma qui non vengono popolati per non pubblicare dati personali.
+  // Anche le quote versate sono dimostrative e NON rappresentano la
+  // situazione economica reale della squadra.
 
   function costruisci() {
     var idSquadra = App.core.id.nuovo(App.core.id.SQUADRA);
@@ -44,60 +50,46 @@
       demo: false
     });
 
-    // ---------- soci: DATI REALI ----------
-    // nascita, telefono e porto d'armi sono null dove il dato non e' noto.
+    // ---------- soci ----------
+    // Solo nome, cognome, ruoli venatori e livello di accesso.
+    // Nessun dato personale nella demo pubblica.
     var CS = ['CAPOSQUADRA', 'CANARO'];
     var PO = ['POSTAIOLO'];
 
+    // Quote dimostrative: servono a far vedere i tre stati dell'interfaccia
+    // (pagata, parziale, non pagata). Non sono i pagamenti reali.
+    var QUOTA_PAGATA = 24000;
+    var QUOTA_PARZIALE = 12000;
+
     var persone = [
-      { nome: 'Stefano',       cognome: 'Bianchi',     ruoli: PO,
-        livello: 'AMMINISTRATORE', nascita: '1975-05-27', tel: '347-6986663',
-        porto: '2027-10-15', versata: 0 },
-      { nome: 'Pier',          cognome: 'Nolli',       ruoli: CS,
-        livello: 'MEMBRO', nascita: null, tel: '334-9876543',
-        porto: '2026-08-20', versata: 24000 },
-      { nome: 'Luca',          cognome: 'Malcotti',    ruoli: CS,
-        livello: 'AMMINISTRATORE', nascita: '1975-01-07', tel: '335-1122334',
-        porto: '2028-01-10', versata: 24000 },
-      { nome: 'Davide',        cognome: 'Zanotti',     ruoli: CS,
-        livello: 'MEMBRO', nascita: null, tel: '338-5544332',
-        porto: '2026-11-05', versata: 0 },
-      { nome: 'Roberto',       cognome: 'Dido',        ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: '339-9988776',
-        porto: '2027-09-30', versata: 24000 },
-      { nome: 'Cristian',      cognome: 'Cerlini',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: '333-7772356',
-        porto: '2029-06-26', versata: 24000 },
-      { nome: 'Adriano',       cognome: 'De Giorgis',  ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 24000 },
-      { nome: 'Antonio',       cognome: 'Rinaldi',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Cesare',        cognome: 'Bettini',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Federico',      cognome: 'Tonetti',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Francesco',     cognome: 'Ferrari',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Gabriele',      cognome: 'Beltrami',    ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Giuseppe',      cognome: 'Olivari',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Lele',          cognome: 'Pinco',       ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Luciano',       cognome: 'Boretti',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Marco',         cognome: 'Mora',        ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Massimiliano',  cognome: 'Manganelli',  ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Pierangelo',    cognome: 'Cottini',     ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Renato',        cognome: 'Borri',       ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Simone',        cognome: 'Agrati',      ruoli: PO,
-        livello: 'MEMBRO', nascita: null, tel: null, porto: null, versata: 0 },
-      { nome: 'Alessandro',    cognome: 'Zanetta',     ruoli: PO,
-        livello: 'AMMINISTRATORE', nascita: null, tel: null, porto: null, versata: 0 }
+      { nome: 'Stefano',       cognome: 'Bianchi',    ruoli: PO,
+        livello: 'AMMINISTRATORE', versata: QUOTA_PAGATA },
+      { nome: 'Pier',          cognome: 'Nolli',      ruoli: CS,
+        livello: 'MEMBRO', versata: QUOTA_PAGATA },
+      { nome: 'Luca',          cognome: 'Malcotti',   ruoli: CS,
+        livello: 'AMMINISTRATORE', versata: QUOTA_PAGATA },
+      { nome: 'Davide',        cognome: 'Zanotti',    ruoli: CS,
+        livello: 'MEMBRO', versata: QUOTA_PAGATA },
+      { nome: 'Roberto',       cognome: 'Dido',       ruoli: PO,
+        livello: 'MEMBRO', versata: QUOTA_PARZIALE },
+      { nome: 'Cristian',      cognome: 'Cerlini',    ruoli: PO,
+        livello: 'MEMBRO', versata: QUOTA_PARZIALE },
+      { nome: 'Adriano',       cognome: 'De Giorgis', ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Antonio',       cognome: 'Rinaldi',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Cesare',        cognome: 'Bettini',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Federico',      cognome: 'Tonetti',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Francesco',     cognome: 'Ferrari',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Gabriele',      cognome: 'Beltrami',   ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Giuseppe',      cognome: 'Olivari',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Lele',          cognome: 'Pinco',      ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Luciano',       cognome: 'Boretti',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Marco',         cognome: 'Mora',       ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Massimiliano',  cognome: 'Manganelli', ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Pierangelo',    cognome: 'Cottini',    ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Renato',        cognome: 'Borri',      ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Simone',        cognome: 'Agrati',     ruoli: PO, livello: 'MEMBRO', versata: 0 },
+      { nome: 'Alessandro',    cognome: 'Zanetta',    ruoli: PO,
+        livello: 'AMMINISTRATORE', versata: 0 }
     ];
 
     var membri = [];
@@ -110,12 +102,14 @@
         squadraId: idSquadra,
         nome: p.nome,
         cognome: p.cognome,
-        dataNascita: p.nascita,
-        telefono: p.tel,
+        // Campi supportati dall'app ma vuoti nella demo pubblica:
+        // si compilano dalla scheda socio, qui non vengono pubblicati.
+        dataNascita: null,
+        telefono: null,
         note: '',
         livelloAccessoApp: p.livello,
         attivo: true,
-        scadenzaPortoArmi: p.porto,
+        scadenzaPortoArmi: null,
         demo: false
       }));
       iscrizioni.push(App.core.stagione.nuovaIscrizione({
