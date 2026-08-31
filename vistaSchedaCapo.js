@@ -49,7 +49,7 @@
               ? '<div class="striscia-annullato">✕ Abbattimento annullato</div>'
               : '') +
           '</div>' +
-          '<button class="btn btn-primario btn-largo" data-vai="#/capo/' + C.esc(a.id) +
+          '<button class="btn btn-contorno" data-vai="#/capo/' + C.esc(a.id) +
             '/modifica" style="margin-top:12px">Modifica</button>' +
         '</div>' +
 

@@ -914,3 +914,242 @@
   font-size: .82rem;
   color: var(--testo-tenue);
 }
+
+/* ============================================================
+   Redesign 4.9 — meno cornici, piu' righe e gerarchia.
+   ============================================================ */
+
+/* marchio discreto in cima alla Home */
+.marchio-riga { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.marchio-riga .logo { width: 40px; height: 40px; border-radius: 9px; display: block; }
+.marchio-riga .marchio {
+  font-size: 1.35rem; font-weight: 800; color: var(--arancio); line-height: 1;
+}
+.marchio-riga .stagione { font-size: .82rem; color: var(--testo-tenue); }
+
+/* blocco "oggi / prossima battuta" */
+.blocco-oggi {
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 18px 16px 16px;
+}
+.blocco-oggi .quando-etichetta {
+  font-size: .78rem; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--arancio);
+}
+.blocco-oggi .data {
+  font-size: 1.55rem; font-weight: 800; line-height: 1.1;
+  margin-top: 2px; letter-spacing: -.02em;
+}
+.blocco-oggi .zona { font-size: 1.12rem; font-weight: 600; color: var(--verde); }
+.blocco-oggi .meta { margin-top: 8px; font-size: .95rem; color: var(--testo-tenue); }
+.blocco-oggi .numeri {
+  display: flex; gap: 24px; margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--bordo);
+}
+.blocco-oggi .numeri b {
+  display: block; font-size: 1.5rem; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.blocco-oggi .numeri span { font-size: .8rem; color: var(--testo-tenue); }
+.blocco-oggi.vuota { text-align: center; }
+
+/* azione principale: arancione, una per schermata */
+.btn-azione {
+  display: block; width: 100%; min-height: 54px; margin-top: 16px;
+  border: 0; border-radius: 12px;
+  background: var(--arancio); color: #fff;
+  font-size: 1.05rem; font-weight: 700; cursor: pointer;
+}
+.btn-azione:active { filter: brightness(.94); }
+.btn-contorno {
+  display: block; width: 100%; min-height: var(--tocco);
+  border: 1.5px solid var(--bordo-forte, #c8ccc6); border-radius: 12px;
+  background: transparent; color: var(--verde);
+  font-size: .98rem; font-weight: 650; cursor: pointer;
+}
+
+/* tre numeri di stagione, senza card */
+.stagione-riga {
+  display: flex; gap: 22px;
+  padding: 14px 2px; margin: 20px 0;
+  border-top: 1px solid var(--bordo); border-bottom: 1px solid var(--bordo);
+}
+.stagione-riga div b {
+  display: block; font-size: 1.35rem; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.stagione-riga div span { font-size: .78rem; color: var(--testo-tenue); }
+
+/* lista generica di righe: un solo contenitore, separatori interni */
+.lista {
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  overflow: hidden;
+}
+.lista > * + * { border-top: 1px solid var(--bordo); }
+
+.voce {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; min-height: 58px; padding: 12px 14px;
+  background: none; border: 0; text-align: left; cursor: pointer;
+}
+.voce .principale { flex: 1 1 auto; min-width: 0; display: block; }
+.voce .titolo { display: block; font-weight: 650; font-size: 1rem; }
+.voce .sotto { display: block; font-size: .82rem; color: var(--testo-tenue); }
+.voce .coda { font-size: .82rem; color: var(--testo-tenue); white-space: nowrap; }
+.voce .freccia { color: var(--bordo-forte, #c8ccc6); font-size: 1.2rem; flex: 0 0 auto; }
+.voce[disabled] { opacity: .55; cursor: default; }
+.voce:not([disabled]):active { background: var(--neutro-sfondo); }
+
+/* riga giornata nell'elenco */
+.voce-giornata .alta {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+}
+.voce-giornata .data { font-size: 1.05rem; font-weight: 750; }
+.voce-giornata .zona { display: block; color: var(--verde); font-weight: 600; }
+.voce-giornata .meta { display: block; font-size: .82rem; color: var(--testo-tenue); margin-top: 2px; }
+.voce-giornata.annullata .data { text-decoration: line-through; color: var(--testo-tenue); }
+
+.stato { font-size: .78rem; font-weight: 700; white-space: nowrap; color: var(--testo-tenue); }
+.stato.completata { color: var(--ok); }
+.stato.annullata { color: var(--pericolo); }
+
+/* testata giornata senza cornice */
+.testata-giornata {
+  background: none; border: 0; border-radius: 0;
+  border-bottom: 1px solid var(--bordo);
+  padding: 4px 0 18px;
+}
+.testata-giornata .data {
+  font-size: 1.5rem; font-weight: 800; line-height: 1.12; letter-spacing: -.02em;
+}
+.testata-giornata .zona {
+  font-size: 1.15rem; font-weight: 600; color: var(--verde); margin-top: 0;
+}
+.testata-giornata .meta { margin-top: 8px; font-size: .95rem; color: var(--testo-tenue); }
+.testata-giornata .stato-riga { margin-top: 6px; font-size: .88rem; }
+.testata-giornata.annullata .data { text-decoration: line-through; color: var(--testo-tenue); }
+
+/* contatore accanto al titolo di sezione */
+.sezione > h3 .contatore {
+  margin-left: auto;
+  font-size: .85rem; font-weight: 700; color: var(--testo);
+  text-transform: none; letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.sezione > h3::after { display: none; }
+.sezione > h3 {
+  font-size: 1rem; font-weight: 700; color: var(--testo);
+  text-transform: none; letter-spacing: -.01em;
+  margin-bottom: 10px;
+}
+
+.testo-note { margin: 0; color: var(--testo-tenue); }
+.rosso { color: var(--pericolo); }
+
+/* riga partecipante dentro la lista unica */
+.elenco-partecipanti { display: block; }
+.riga-partecipante {
+  display: grid; grid-template-columns: 1fr auto;
+  background: none; border: 0; border-radius: 0;
+}
+.riga-partecipante .tocco {
+  display: flex; align-items: center; gap: 14px;
+  min-height: 60px; padding: 8px 6px 8px 14px;
+  border: 0; background: none; text-align: left; cursor: pointer; width: 100%;
+}
+.riga-partecipante .segno {
+  flex: 0 0 auto; width: 30px; height: 30px;
+  border-radius: 9px; border: 2px solid var(--bordo-forte, #c8ccc6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 800; color: transparent; background: var(--superficie);
+}
+.riga-partecipante .nome {
+  display: block; font-weight: 650; font-size: 1.02rem; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.riga-partecipante .ruoli {
+  display: block; font-size: .78rem; color: var(--testo-tenue); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.riga-partecipante .stato-testo { flex: 0 0 auto; font-size: .78rem; font-weight: 700; color: var(--testo-tenue); }
+.riga-partecipante .altro {
+  min-width: var(--tocco); min-height: 60px;
+  border: 0; border-left: 1px solid var(--bordo); background: none;
+  color: var(--bordo-forte, #c8ccc6); font-size: 1.15rem; cursor: pointer;
+}
+/* selezionato: forma piena + spunta, leggibile anche in scala di grigi */
+.riga-partecipante.presente { background: var(--arancio-tenue, #fff0e5); }
+.riga-partecipante.presente .segno {
+  background: var(--arancio); border-color: var(--arancio); color: #fff;
+}
+.riga-partecipante.assente .segno { border-color: var(--pericolo); color: var(--pericolo); }
+.riga-partecipante.assente .stato-testo { color: var(--pericolo); }
+.riga-partecipante.lavoro .segno { border-color: var(--avviso); color: var(--avviso); }
+.riga-partecipante.lavoro .stato-testo { color: var(--avviso); }
+
+.riga-partecipante .altri-stati {
+  grid-column: 1 / -1;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  padding: 10px 14px 12px; background: var(--neutro-sfondo);
+  border-top: 1px solid var(--bordo);
+}
+
+.nota-piccola { font-size: .8rem; color: var(--testo-tenue); margin: -4px 0 10px; }
+.collegamento-tenue {
+  display: inline-block; margin-top: 10px;
+  font-size: .84rem; color: var(--testo-tenue);
+}
+
+/* riga capo nell'elenco */
+.voce-capo .alta {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.voce-capo .codice {
+  font-size: 1.18rem; font-weight: 800; letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+}
+.voce-capo .peso { font-size: 1.12rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.voce-capo .dati { display: block; font-size: .86rem; color: var(--testo-tenue); }
+.voce-capo .chi { display: block; font-size: .95rem; font-weight: 600; margin-top: 4px; }
+.voce-capo .dove { display: block; font-size: .82rem; color: var(--testo-tenue); }
+.voce-capo .sanitario { display: block; font-size: .85rem; font-weight: 650; margin-top: 8px; }
+.voce-capo .sanitario .esito.ok { color: var(--ok); }
+.voce-capo .sanitario .esito.attesa { color: var(--avviso); }
+.voce-capo .sanitario .esito.positivo { color: var(--pericolo); font-weight: 800; }
+.voce-capo .sanitario .esito.assente { color: var(--testo-tenue); font-weight: 500; font-style: italic; }
+.voce-capo.annullato .codice { text-decoration: line-through; color: var(--testo-tenue); }
+.voce-capo.annullato { opacity: .78; }
+
+/* rubrica soci */
+.quota { font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.quota.ok { color: var(--ok); }
+.quota.parziale { color: var(--avviso); }
+/* "Da pagare" e' un promemoria, non un errore: niente rosso forte. */
+.quota.attesa { color: var(--testo-tenue); }
+.voce-socio.inattivo .titolo { color: var(--testo-tenue); }
+
+/* Le vecchie regole del 4.6 disegnavano ogni riga come una card a sé.
+   Dentro .lista le righe sono elementi di un unico contenitore. */
+.lista .voce-capo,
+.lista .voce-giornata,
+.lista .voce-socio {
+  display: flex;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  padding: 12px 14px;
+}
+.lista .voce-capo.annullato,
+.lista .voce-giornata.annullata,
+.lista .voce-socio.inattivo {
+  border-style: solid;
+  border-width: 0;
+  border-top-width: 1px;
+}
+.lista > .voce:first-child { border-top-width: 0; }
+.lista .voce-capo .principale,
+.lista .voce-giornata .principale { display: block; }
+.lista .voce-capo .fascia-annullato,
+.lista .voce-capo .riga-sanitaria { display: none; }

@@ -17,14 +17,19 @@
   // anche in bianco e nero o per chi non distingue i colori.
   var SEGNO = { PROGRAMMATA: '\u25CB', COMPLETATA: '\u2713', ANNULLATA: '\u2715' };
 
-  function badgeStato(stato) {
-    var classe = 'badge badge-stato';
-    if (stato === 'COMPLETATA') classe += ' badge-ok';
-    else if (stato === 'ANNULLATA') classe += ' badge-pericolo badge-annullato';
-    else classe += ' badge-verde';
-    return '<span class="' + classe + '">' + (SEGNO[stato] || '') + ' ' +
+  function classeStato(stato) {
+    if (stato === 'COMPLETATA') return 'stato completata';
+    if (stato === 'ANNULLATA') return 'stato annullata';
+    return 'stato programmata';
+  }
+
+  function etichettaStato(stato) {
+    return '<span class="' + classeStato(stato) + '">' + (SEGNO[stato] || '') + ' ' +
       App.ui.componenti.esc(App.costanti.etichettaStatoGiornata(stato)) + '</span>';
   }
+
+  // La scheda giornata riusa questa funzione.
+  function badgeStato(stato) { return etichettaStato(stato); }
 
   function render() {
     var C = App.ui.componenti;
@@ -47,46 +52,50 @@
 
       var oggi = App.core.giornata.oggiIso();
 
-      var elenco = dati.righe.length
-        ? '<div class="elenco">' + dati.righe.map(function (r) {
-            var g = r.giornata;
-            var passata = String(g.data) < oggi;
-            // Griglia a due colonne: testo a sinistra, stato sempre in alto a
-            // destra. La lunghezza della data non sposta piu' il badge.
-            return '<button class="voce-giornata' +
-              (passata ? ' passata' : '') +
-              (g.stato === 'ANNULLATA' ? ' annullata' : '') +
-              '" data-vai="#/giornata/' + C.esc(g.id) + '">' +
-              '<div class="testo">' +
-                '<div class="quando">' +
-                  '<span class="giorno">' + C.esc(giornoSettimana(g.data)) + '</span> ' +
-                  '<span class="data">' + C.esc(C.formattaData(g.data)) + '</span>' +
-                '</div>' +
-                '<div class="zona">' + C.esc(g.zona || 'Zona non indicata') + '</div>' +
-              '</div>' +
-              '<div class="stato">' + badgeStato(g.stato) + '</div>' +
-              '<div class="meta-riga">' +
-                '<span>' +
-                  (g.orarioRitrovo ? 'ore ' + C.esc(g.orarioRitrovo) + ' · ' : '') +
-                  (r.capocaccia
-                    ? C.esc(C.nomeCompleto(r.capocaccia))
-                    : 'Capocaccia da assegnare') +
-                '</span>' +
-                '<span class="presenti">' + r.presenti +
-                  ' partecipant' + (r.presenti === 1 ? 'e' : 'i') + '</span>' +
-              '</div>' +
-            '</button>';
-          }).join('') + '</div>'
-        : '<div class="vuoto">Nessuna giornata in questa stagione.</div>';
+      function riga(r) {
+        var g = r.giornata;
+        return '<button class="voce voce-giornata' +
+          (g.stato === 'ANNULLATA' ? ' annullata' : '') +
+          '" data-vai="#/giornata/' + C.esc(g.id) + '">' +
+          '<span class="principale">' +
+            '<span class="alta">' +
+              '<span class="data">' + C.esc(giornoSettimana(g.data)) + ' ' +
+                C.esc(C.formattaData(g.data)) + '</span>' +
+              etichettaStato(g.stato) +
+            '</span>' +
+            '<span class="zona">' + C.esc(g.zona || 'Zona non indicata') + '</span>' +
+            '<span class="meta">' +
+              (g.orarioRitrovo ? C.esc(g.orarioRitrovo) + ' · ' : '') +
+              (r.capocaccia
+                ? C.esc(C.nomeCompleto(r.capocaccia))
+                : 'capocaccia da assegnare') +
+              ' · ' + r.presenti + ' partecipant' + (r.presenti === 1 ? 'e' : 'i') +
+            '</span>' +
+          '</span>' +
+          '<span class="freccia">&#8250;</span>' +
+        '</button>';
+      }
+
+      var future = [], passate = [];
+      dati.righe.forEach(function (r) {
+        (String(r.giornata.data) >= oggi ? future : passate).push(r);
+      });
+
+      function gruppo(titolo, elenco, vuoto) {
+        return '<div class="sezione"><h3>' + titolo + '</h3>' +
+          (elenco.length
+            ? '<div class="lista">' + elenco.map(riga).join('') + '</div>'
+            : '<p class="nota-piede">' + vuoto + '</p>') +
+        '</div>';
+      }
 
       C.monta(
         '<div class="sezione">' +
-          '<button class="btn btn-primario btn-largo" data-vai="#/giornata/nuova">' +
+          '<button class="btn btn-azione" data-vai="#/giornata/nuova">' +
           '+ Nuova giornata</button>' +
         '</div>' +
-        '<div class="sezione">' + elenco + '</div>' +
-        '<p class="nota-piede">Sono mostrate solo le giornate della stagione attiva. ' +
-        'Le stagioni precedenti conservano le proprie.</p>');
+        gruppo('In programma', future, 'Nessuna giornata in programma.') +
+        gruppo('Passate', passate, 'Nessuna giornata passata.'));
     });
   }
 

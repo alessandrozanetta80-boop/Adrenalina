@@ -9,7 +9,8 @@
     return Promise.all([
       App.core.membro.elenco(),
       App.data.giornate.tutte(),
-      App.data.abbattimenti.tutti()
+      App.data.abbattimenti.tutti(),
+      App.data.presenze.tutte()
     ]).then(function (r) {
       var dati = r[0];
       var ctx = dati.contesto;
@@ -50,104 +51,92 @@
 
       var V = App.ui.viste.giornate;
 
-      function navCard(hash, titolo, secondario) {
-        return '<button class="btn-nav" data-vai="' + hash + '">' +
-          '<span class="voce">' + titolo + '</span>' +
-          '<span class="freccia">' +
-            (secondario ? '<span class="dato">' + secondario + '</span>' : '') +
-            '&#8250;' +
-          '</span>' +
-        '</button>';
-      }
-
-      // Voce presente ma non ancora attiva: il modulo non esiste.
-      function navInattiva(titolo) {
-        return '<button class="btn-nav btn-nav-inattivo" disabled>' +
-          '<span class="voce">' + titolo + '</span>' +
-          '<span class="freccia"><span class="dato">Prossimamente</span></span>' +
-        '</button>';
-      }
-
       var capocacciaProssima = prossima && prossima.capocacciaMembroId
         ? membriPerId[prossima.capocacciaMembroId] : null;
+      var presentiProssima = prossima
+        ? r[3].filter(function (p) {
+            return p.giornataId === prossima.id &&
+              p.stato === App.costanti.STATO_PRESENZA.PRESENTE;
+          }).length
+        : 0;
+      var capiProssima = prossima
+        ? r[2].filter(function (a) {
+            return a.giornataId === prossima.id && !a.annullato;
+          }).length
+        : 0;
 
       C.monta(
-        // --- A. testata identitaria ---
-        '<div class="testata-identita">' +
-          '<div class="riga-marchio">' +
-            '<img class="logo" src="icona-192.png" alt="" width="52" height="52">' +
+        // --- marchio, discreto ---
+        '<div class="marchio-riga">' +
+          '<img class="logo" src="icona-192.png" alt="" width="40" height="40">' +
+          '<div>' +
             '<div class="marchio">Adrenalina</div>' +
-          '</div>' +
-          '<div class="stagione">' +
-            (ctx.stagioneAttiva
-              ? 'Stagione ' + C.esc(ctx.stagioneAttiva.nome)
-              : 'Nessuna stagione attiva') +
+            '<div class="stagione">' +
+              (ctx.stagioneAttiva
+                ? 'Stagione ' + C.esc(ctx.stagioneAttiva.nome)
+                : 'Nessuna stagione attiva') +
+            '</div>' +
           '</div>' +
         '</div>' +
 
-        // --- B. prossima giornata (solo se esiste) ---
+        // --- cosa succede adesso ---
         (prossima
-          ? '<div class="sezione">' +
-              '<div class="card-prossima">' +
-                '<div class="occhiello">' +
-                  (String(prossima.data) === oggi ? 'Oggi' : 'Prossima giornata') +
-                '</div>' +
-                '<div class="quando">' +
-                  C.esc(V.giornoSettimana(prossima.data)) + ' ' +
-                  C.esc(C.formattaData(prossima.data)) +
-                '</div>' +
-                '<div class="zona">' + C.esc(prossima.zona || 'Zona non indicata') + '</div>' +
-                '<dl class="righe">' +
-                  '<div><dt>Ritrovo</dt><dd>' +
-                    (prossima.orarioRitrovo ? 'ore ' + C.esc(prossima.orarioRitrovo) : '—') +
-                  '</dd></div>' +
-                  '<div><dt>Capocaccia</dt><dd>' +
-                    (capocacciaProssima
-                      ? C.esc(C.nomeCompleto(capocacciaProssima))
-                      : 'Da assegnare') +
-                  '</dd></div>' +
-                '</dl>' +
-                '<button class="btn btn-primario btn-largo" data-vai="#/giornata/' +
-                  C.esc(prossima.id) + '">Apri giornata</button>' +
+          ? '<div class="blocco-oggi">' +
+              '<div class="quando-etichetta">' +
+                (String(prossima.data) === oggi ? 'Oggi' : 'Prossima battuta') +
               '</div>' +
+              '<div class="data">' +
+                C.esc(V.giornoSettimana(prossima.data)) + ' ' +
+                C.esc(C.formattaData(prossima.data)) +
+              '</div>' +
+              '<div class="zona">' + C.esc(prossima.zona || 'Zona non indicata') + '</div>' +
+              '<div class="meta">' +
+                (prossima.orarioRitrovo ? 'Ritrovo ' + C.esc(prossima.orarioRitrovo) : 'Orario da definire') +
+                ' · ' +
+                (capocacciaProssima
+                  ? 'Capocaccia ' + C.esc(C.nomeCompleto(capocacciaProssima))
+                  : 'capocaccia da assegnare') +
+              '</div>' +
+              '<div class="numeri">' +
+                '<div><b>' + presentiProssima + '</b><span>partecipanti</span></div>' +
+                '<div><b>' + capiProssima + '</b><span>capi</span></div>' +
+              '</div>' +
+              '<button class="btn btn-azione" data-vai="#/giornata/' + C.esc(prossima.id) +
+                '">Apri giornata</button>' +
             '</div>'
-          : '') +
+          : '<div class="blocco-oggi vuota">' +
+              '<div class="quando-etichetta">Nessuna battuta in programma</div>' +
+              '<button class="btn btn-azione" data-vai="#/giornate">Vai alle giornate</button>' +
+            '</div>') +
 
-        // --- C. la stagione in tre numeri, senza card amministrative ---
-        '<div class="sezione">' +
-          '<div class="strip-stagione">' +
-            '<div><span class="valore">' + attivi.length + '</span>' +
-              '<span class="etichetta">Membri attivi</span></div>' +
-            '<div><span class="valore">' + giornateStagione.length + '</span>' +
-              '<span class="etichetta">Giornate</span></div>' +
-            '<div><span class="valore">' + numCapi + '</span>' +
-              '<span class="etichetta">Capi stagione</span></div>' +
-          '</div>' +
+        // --- la stagione in tre numeri, senza cornici ---
+        '<div class="stagione-riga">' +
+          '<div><b>' + attivi.length + '</b><span>soci</span></div>' +
+          '<div><b>' + giornateStagione.length + '</b><span>giornate</span></div>' +
+          '<div><b>' + numCapi + '</b><span>capi</span></div>' +
         '</div>' +
 
-        // --- D. le quattro porte principali ---
-        '<div class="sezione">' +
-          '<div class="pila">' +
-            navCard('#/giornate', 'Giornate', giornateStagione.length + ' in stagione') +
-            navCard('#/soci', 'Squadra', attivi.length + ' attivi') +
-            navCard('#/abbattimenti', 'Abbattimenti', numCapi + ' capi') +
-            navInattiva('Cassa') +
-          '</div>' +
-        '</div>' +
-
-        // --- E. amministrazione, fuori dal percorso quotidiano ---
+        // --- amministrazione, chiaramente secondaria ---
         '<div class="sezione">' +
           '<h3>Amministrazione</h3>' +
-          '<div class="pila">' +
-            '<div class="card riga-quote">' +
-              '<span class="valore">' + riep.daIncassare + '</span>' +
-              '<span class="etichetta">Quote da incassare</span>' +
-              '<span class="extra">' + C.esc(Q.formattaEuro(riep.residuoTotaleCent)) +
-                ' · ' + riep.pagate + ' pagate</span>' +
-            '</div>' +
-            navCard('#/stagioni', 'Stagioni', ctx.stagioni.length +
-              (ctx.stagioni.length === 1 ? ' stagione' : ' stagioni')) +
-            navCard('#/backup', 'Backup dati', '') +
+          '<div class="lista">' +
+            '<button class="voce" data-vai="#/stagioni">' +
+              '<span class="principale"><span class="titolo">Stagioni</span>' +
+              '<span class="sotto">' + C.esc(ctx.stagioneAttiva ? ctx.stagioneAttiva.nome : '—') +
+              '</span></span>' +
+              '<span class="freccia">&#8250;</span>' +
+            '</button>' +
+            '<button class="voce" data-vai="#/backup">' +
+              '<span class="principale"><span class="titolo">Backup dati</span>' +
+              '<span class="sotto">esporta o importa l\u2019archivio</span></span>' +
+              '<span class="freccia">&#8250;</span>' +
+            '</button>' +
+            '<button class="voce" disabled>' +
+              '<span class="principale"><span class="titolo">Cassa</span>' +
+              '<span class="sotto">' + riep.daIncassare + ' quote da incassare · ' +
+              C.esc(Q.formattaEuro(riep.residuoTotaleCent)) + '</span></span>' +
+              '<span class="coda">Prossimamente</span>' +
+            '</button>' +
           '</div>' +
           (nonIscritti
             ? '<p class="nota-piede">' + nonIscritti +

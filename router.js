@@ -33,7 +33,29 @@
   // Rotte raggiungibili anche senza nessuna squadra in archivio.
   var ROTTE_SENZA_SQUADRA = ['configurazione', 'backup'];
 
+  // A quale scheda della barra bassa appartiene ogni vista.
+  var TAB = {
+    home: 'home', configurazione: 'home',
+    giornate: 'giornate', schedaGiornata: 'giornate', formGiornata: 'giornate',
+    presenze: 'giornate',
+    abbattimenti: 'capi', schedaCapo: 'capi', formCapo: 'capi', formSanitario: 'capi',
+    soci: 'squadra', schedaSocio: 'squadra', formSocio: 'squadra',
+    stagioni: 'home', backup: 'home'
+  };
+
+  function evidenziaTab(nomeVista) {
+    var barra = document.getElementById('barra-bassa');
+    if (!barra) return;
+    var attivo = TAB[nomeVista] || '';
+    Array.prototype.forEach.call(barra.querySelectorAll('button'), function (b) {
+      var suo = b.getAttribute('data-tab') === attivo;
+      b.classList.toggle('attivo', suo);
+      b.setAttribute('aria-current', suo ? 'page' : 'false');
+    });
+  }
+
   function disegnaRotta(nomeVista, params) {
+    evidenziaTab(nomeVista);
     var vista = App.ui.viste[nomeVista];
     return Promise.resolve(vista.render(params)).catch(function (e) {
       if (global.console) global.console.error(e);
@@ -67,7 +89,18 @@
   }
 
   // Delegazione unica per tutti i pulsanti di navigazione.
+  function collegaBarra() {
+    var barra = document.getElementById('barra-bassa');
+    if (!barra) return;
+    barra.addEventListener('click', function (ev) {
+      var b = ev.target;
+      while (b && b !== barra && !b.getAttribute('data-vai')) b = b.parentNode;
+      if (b && b.getAttribute && b.getAttribute('data-vai')) vai(b.getAttribute('data-vai'));
+    });
+  }
+
   function avvia() {
+    collegaBarra();
     document.addEventListener('click', function (e) {
       var el = e.target;
       while (el && el !== document.body) {

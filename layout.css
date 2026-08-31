@@ -40,7 +40,9 @@
   padding: var(--spazio);
   padding-left: max(var(--spazio), env(safe-area-inset-left));
   padding-right: max(var(--spazio), env(safe-area-inset-right));
-  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  /* La barra bassa e' fissa: il contenuto le lascia sempre spazio,
+     inclusa la zona sicura dei telefoni con gesture bar. */
+  padding-bottom: calc(var(--barra-bassa) + 24px + env(safe-area-inset-bottom, 0px));
   max-width: 900px;
   margin: 0 auto;
 }
@@ -70,4 +72,54 @@
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+}
+
+
+/* ---------- barra di navigazione bassa ---------- */
+.barra-bassa {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--superficie);
+  border-top: 1px solid var(--bordo);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.barra-bassa button {
+  position: relative;
+  min-height: var(--barra-bassa);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: var(--testo-tenue);
+  font-size: .72rem;
+  font-weight: 600;
+}
+.barra-bassa button svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.barra-bassa button.attivo { color: var(--verde); }
+/* La scheda attiva non si distingue solo dal colore: ha anche la barretta. */
+.barra-bassa button.attivo::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--arancio);
 }

@@ -6,11 +6,13 @@
   var SP = App.costanti.STATO_PRESENZA;
 
   // Come si presenta ogni stato nella riga compatta.
+  // "Partecipa" si legge gia' dal controllo pieno e dalla riga evidenziata:
+  // l'etichetta testuale resta solo per gli stati eccezionali.
   var SEGNO = {
-    PRESENTE:    { simbolo: '\u2713', etichetta: 'Partecipa',   classe: 'presente' },
-    ASSENTE:     { simbolo: '\u2715', etichetta: 'Assente',     classe: 'assente' },
-    LAVORO:      { simbolo: 'L',      etichetta: 'Lavoro',      classe: 'lavoro' },
-    NON_SEGNATO: { simbolo: '',       etichetta: '',            classe: 'nonsegnato' }
+    PRESENTE:    { simbolo: '\u2713', etichetta: '',        classe: 'presente' },
+    ASSENTE:     { simbolo: '\u2715', etichetta: 'Assente', classe: 'assente' },
+    LAVORO:      { simbolo: 'L',      etichetta: 'Lavoro',  classe: 'lavoro' },
+    NON_SEGNATO: { simbolo: '',       etichetta: '',        classe: 'nonsegnato' }
   };
 
   function riga(etichetta, valore) {
@@ -81,82 +83,75 @@
       }
 
       C.monta(
-        // --- A. testata ---
-        '<div class="sezione">' +
-          '<div class="testata-giornata' +
-            (g.stato === 'ANNULLATA' ? ' annullata' : '') + '">' +
-            '<div class="riga-alta">' +
-              '<div class="quando">' +
-                C.esc(V.giornoSettimana(g.data)) + ' ' + C.esc(C.formattaData(g.data)) +
-              '</div>' +
-              V.badgeStato(g.stato) +
-            '</div>' +
-            '<div class="titolo">' + C.esc(g.zona || 'Zona non indicata') + '</div>' +
-            '<dl class="righe">' +
-              '<div><dt>Ritrovo</dt><dd>' +
-                (g.orarioRitrovo ? 'ore ' + C.esc(g.orarioRitrovo) : '—') + '</dd></div>' +
-              '<div><dt>Capocaccia</dt><dd>' +
-                (dati.capocaccia ? C.esc(C.nomeCompleto(dati.capocaccia)) : 'Da assegnare') +
-              '</dd></div>' +
-            '</dl>' +
+        // --- A. testata, senza cornici ---
+        '<div class="testata-giornata' +
+          (g.stato === 'ANNULLATA' ? ' annullata' : '') + '">' +
+          '<div class="data">' +
+            C.esc(V.giornoSettimana(g.data)) + ' ' + C.esc(C.formattaData(g.data)) +
           '</div>' +
+          '<div class="zona">' + C.esc(g.zona || 'Zona non indicata') + '</div>' +
+          '<div class="meta">' +
+            (g.orarioRitrovo ? C.esc(g.orarioRitrovo) : 'Orario da definire') + ' · ' +
+            (dati.capocaccia
+              ? 'Capocaccia ' + C.esc(C.nomeCompleto(dati.capocaccia))
+              : 'capocaccia da assegnare') +
+          '</div>' +
+          '<div class="stato-riga">' + V.badgeStato(g.stato) + '</div>' +
         '</div>' +
 
         // --- B. partecipanti alla battuta ---
         '<div class="sezione">' +
-          '<h3>Partecipanti alla battuta</h3>' +
-          '<div class="conta-partecipanti">' +
-            '<span class="valore" id="conta-partecipanti">' + contaPartecipanti() + '</span>' +
-            '<span class="totale">/ ' + righe.length + '</span>' +
-            '<span class="etichetta">Partecipanti</span>' +
-          '</div>' +
-          '<p class="nota-piccola">I partecipanti saranno utilizzati per la futura ' +
-          'ripartizione della carne.</p>' +
+          '<h3>Partecipanti alla battuta' +
+            '<span class="contatore"><span id="conta-partecipanti">' +
+            contaPartecipanti() + '</span> / ' + righe.length + '</span>' +
+          '</h3>' +
+          '<p class="nota-piccola">Tocca il nome per far partecipare qualcuno. ' +
+          'I partecipanti serviranno per la futura ripartizione della carne.</p>' +
           (righe.length
-            ? '<div class="elenco-partecipanti">' + righe.map(rigaPartecipante).join('') + '</div>'
-            : '<div class="vuoto">Nessun socio iscritto a questa stagione.</div>') +
+            ? '<div class="lista elenco-partecipanti">' +
+              righe.map(rigaPartecipante).join('') + '</div>'
+            : '<p class="nota-piede">Nessun socio iscritto a questa stagione.</p>') +
           '<a class="collegamento-tenue" href="#/giornata/' + C.esc(g.id) +
           '/presenze">Vista estesa</a>' +
         '</div>' +
 
         // --- C. abbattimenti ---
-        '<div class="sezione"><h3>Abbattimenti</h3><div class="card">' +
-          '<p style="margin:0 0 10px"><strong>' + pacchetto.capi.validi + '</strong> cap' +
-          (pacchetto.capi.validi === 1 ? 'o valido' : 'i validi') + ' in questa giornata.</p>' +
+        '<div class="sezione">' +
+          '<h3>Abbattimenti<span class="contatore">' + pacchetto.capi.validi +
+            ' cap' + (pacchetto.capi.validi === 1 ? 'o' : 'i') + '</span></h3>' +
           (pacchetto.capi.tutti.length
-            ? '<ul class="elenco-capi-giornata">' + pacchetto.capi.tutti.map(function (r) {
-                return '<li' + (r.capo.annullato ? ' class="annullato"' : '') + '>' +
-                  '<a href="#/capo/' + C.esc(r.capo.id) + '">' +
-                    '<span class="riga-alta">' +
+            ? '<div class="lista">' + pacchetto.capi.tutti.map(function (r) {
+                return '<button class="voce voce-capo' +
+                  (r.capo.annullato ? ' annullato' : '') +
+                  '" data-vai="#/capo/' + C.esc(r.capo.id) + '">' +
+                  '<span class="principale">' +
+                    '<span class="alta">' +
                       '<span class="codice">' + C.esc(r.capo.codiceCapo) + '</span>' +
                       '<span class="peso">' +
                         C.esc(App.core.capo.formattaKg(r.capo.pesoGrammi)) + '</span>' +
                     '</span>' +
-                    '<span class="riga-bassa">' +
-                      '<span class="tir">' +
-                        (r.tiratore ? C.esc(C.nomeCompleto(r.tiratore)) : '—') + '</span>' +
-                      (r.capo.annullato
-                        ? '<span class="badge badge-pericolo badge-annullato">' +
-                          '\u2715 Annullato</span>'
-                        : '') +
+                    '<span class="chi">' +
+                      (r.tiratore ? C.esc(C.nomeCompleto(r.tiratore)) : '—') +
+                      (r.capo.annullato ? ' · <b class="rosso">Annullato</b>' : '') +
                     '</span>' +
-                  '</a>' +
-                '</li>';
-              }).join('') + '</ul>'
-            : '') +
-          '<button class="btn btn-largo" data-vai="#/capo/nuovo/' + C.esc(g.id) +
+                  '</span>' +
+                  '<span class="freccia">&#8250;</span>' +
+                '</button>';
+              }).join('') + '</div>'
+            : '<p class="nota-piede">Nessun capo registrato in questa giornata.</p>') +
+          '<button class="btn btn-contorno" data-vai="#/capo/nuovo/' + C.esc(g.id) +
           '" style="margin-top:12px">+ Registra abbattimento</button>' +
-        '</div></div>' +
+        '</div>' +
 
         // --- D. note ---
         (g.note
-          ? '<div class="sezione"><h3>Note</h3><div class="card"><p style="margin:0">' +
-            C.esc(g.note) + '</p></div></div>'
+          ? '<div class="sezione"><h3>Note</h3>' +
+            '<p class="testo-note">' + C.esc(g.note) + '</p></div>'
           : '') +
 
         // --- E. azione secondaria ---
-        '<div class="sezione pila">' +
-          '<button class="btn btn-fantasma" data-vai="#/giornata/' + C.esc(g.id) +
+        '<div class="sezione">' +
+          '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
             '/modifica">Modifica giornata</button>' +
         '</div>' +
 

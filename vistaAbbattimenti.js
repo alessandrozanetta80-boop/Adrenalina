@@ -8,33 +8,34 @@
     var C = App.ui.componenti;
     var K = App.core.capo;
     var a = riga.capo;
-    var positivo = controllo && controllo.statoTrichinella === 'POSITIVO';
-    // Gerarchia: codice + peso sulla stessa riga, poi il capo, poi chi e quando.
-    // Lo stato sanitario chiude la card in una fascia separata.
-    return '<button class="voce-capo' + (a.annullato ? ' annullato' : '') +
+    var stato = App.core.sanitario.etichettaStato(controllo);
+    var classe = 'assente';
+    if (controllo) {
+      if (controllo.statoTrichinella === 'POSITIVO') classe = 'positivo';
+      else if (controllo.statoTrichinella === 'NEGATIVO_CONFORME') classe = 'ok';
+      else if (controllo.statoTrichinella === 'IN_ATTESA') classe = 'attesa';
+      else classe = 'neutro';
+    }
+    return '<button class="voce voce-capo' + (a.annullato ? ' annullato' : '') +
       '" data-vai="#/capo/' + C.esc(a.id) + '">' +
-      '<div class="riga-testata">' +
-        '<span class="codice">' + C.esc(a.codiceCapo) + '</span>' +
-        '<span class="peso">' + C.esc(K.formattaKg(a.pesoGrammi)) + '</span>' +
-      '</div>' +
-      '<div class="dati-capo">' +
-        C.esc(App.costanti.etichettaSesso(a.sesso)) + ' \u00b7 ' +
-        C.esc(App.costanti.etichettaClasseEta(a.classeEta)) +
-      '</div>' +
-      '<div class="tiratore">' + (riga.tiratore
-        ? C.esc(C.nomeCompleto(riga.tiratore)) : 'Tiratore non trovato') + '</div>' +
-      '<div class="quando">' +
-        C.esc(C.formattaData(riga.data)) +
-        (riga.zona ? ' \u00b7 ' + C.esc(riga.zona) : '') +
-      '</div>' +
-      (a.annullato
-        ? '<div class="fascia-annullato">\u2715 Annullato</div>'
-        : '') +
-      '<div class="riga-sanitaria' + (positivo ? ' positivo' : '') +
-        (controllo ? '' : ' assente') + '">' +
-        (positivo ? '\u26A0 ' : '') + 'Trichinella: ' +
-        C.esc(App.core.sanitario.etichettaStato(controllo)) +
-      '</div>' +
+      '<span class="principale">' +
+        '<span class="alta">' +
+          '<span class="codice">' + C.esc(a.codiceCapo) + '</span>' +
+          '<span class="peso">' + C.esc(K.formattaKg(a.pesoGrammi)) + '</span>' +
+        '</span>' +
+        '<span class="dati">' +
+          C.esc(App.costanti.etichettaSesso(a.sesso)) + ' \u00b7 ' +
+          C.esc(App.costanti.etichettaClasseEta(a.classeEta)) +
+          (a.annullato ? ' \u00b7 <b class="rosso">Annullato</b>' : '') +
+        '</span>' +
+        '<span class="chi">' + (riga.tiratore
+          ? C.esc(C.nomeCompleto(riga.tiratore)) : 'Tiratore non trovato') + '</span>' +
+        '<span class="dove">' + C.esc(C.formattaData(riga.data)) +
+          (riga.zona ? ' \u00b7 ' + C.esc(riga.zona) : '') + '</span>' +
+        '<span class="sanitario">Trichinella \u00b7 ' +
+          '<span class="esito ' + classe + '">' +
+          (classe === 'positivo' ? '\u26A0 ' : '') + C.esc(stato) + '</span></span>' +
+      '</span>' +
     '</button>';
   }
 
@@ -47,13 +48,9 @@
       var dati = risultati[0];
       var controlli = risultati[1];
       var ctx = dati.contesto;
-      C.intestazione({
-        titolo: 'Registro abbattimenti',
-        sotto: ctx.stagioneAttiva ? 'Stagione ' + ctx.stagioneAttiva.nome : 'Nessuna stagione attiva',
-        indietro: '#/home'
-      });
-
       if (!ctx.stagioneAttiva) {
+        C.intestazione({ titolo: 'Abbattimenti', sotto: 'Nessuna stagione attiva',
+          indietro: '#/home' });
         C.monta('<div class="vuoto"><h2>Nessuna stagione attiva</h2>' +
           '<p>I capi appartengono a una stagione. Attivane una per continuare.</p></div>');
         return;
@@ -62,28 +59,26 @@
       var validi = dati.righe.filter(function (r) { return !r.capo.annullato; }).length;
       var annullati = dati.righe.length - validi;
 
-      var elenco = dati.righe.length
-        ? '<div class="elenco">' + dati.righe.map(function (r) {
-            return cardCapo(r, controlli[r.capo.id] || null);
-          }).join('') + '</div>'
-        : '<div class="vuoto">Nessun capo registrato in questa stagione.</div>';
+      C.intestazione({
+        titolo: 'Abbattimenti',
+        sotto: 'Stagione ' + ctx.stagioneAttiva.nome + ' · ' + validi +
+          ' cap' + (validi === 1 ? 'o' : 'i') +
+          (annullati ? ' · ' + annullati + ' annullat' + (annullati === 1 ? 'o' : 'i') : ''),
+        indietro: '#/home'
+      });
 
       C.monta(
         '<div class="sezione">' +
-          '<div class="riepilogo">' +
-            '<div class="squadra">' + validi + ' cap' + (validi === 1 ? 'o' : 'i') + '</div>' +
-            '<div class="stagione">Stagione ' + C.esc(ctx.stagioneAttiva.nome) +
-              (annullati ? ' · ' + annullati + ' annullat' + (annullati === 1 ? 'o' : 'i') : '') +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="sezione">' +
-          '<button class="btn btn-primario btn-largo" data-vai="#/capo/nuovo">' +
+          '<button class="btn btn-azione" data-vai="#/capo/nuovo">' +
           '+ Nuovo abbattimento</button>' +
         '</div>' +
-        '<div class="sezione">' + elenco + '</div>' +
-        '<p class="nota-piede">Sono mostrati i capi della stagione attiva, dai più recenti. ' +
-        'I capi annullati restano in archivio.</p>');
+        '<div class="sezione">' +
+          (dati.righe.length
+            ? '<div class="lista">' + dati.righe.map(function (r) {
+                return cardCapo(r, controlli[r.capo.id] || null);
+              }).join('') + '</div>'
+            : '<p class="nota-piede">Nessun capo registrato in questa stagione.</p>') +
+        '</div>');
     });
   }
 
