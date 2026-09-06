@@ -80,6 +80,37 @@
     });
   }
 
+  // Una giornata creata per errore si puo' eliminare, ma solo finche' e'
+  // vuota: nessun partecipante segnato, nessun capo, nessuna carne.
+  // Appena contiene qualcosa si annulla soltanto, per non perdere storico.
+  function analizzaEliminazione(giornataId) {
+    return App.data.repo.leggiStore(['giornate', 'presenze', 'abbattimenti', 'lottiCarne'])
+      .then(function (d) {
+        var g = d.giornate.filter(function (x) { return x.id === giornataId; })[0];
+        if (!g) throw new Error('Giornata non trovata.');
+        var presenze = d.presenze.filter(function (p) { return p.giornataId === giornataId; }).length;
+        var capi = d.abbattimenti.filter(function (a) { return a.giornataId === giornataId; }).length;
+        var lotti = d.lottiCarne.filter(function (l) { return l.giornataId === giornataId; }).length;
+        var motivi = [];
+        if (presenze) motivi.push(presenze + ' partecipante/i segnato/i');
+        if (capi) motivi.push(capi + ' capo/i registrato/i');
+        if (lotti) motivi.push('la carne della battuta');
+        return { giornata: g, puoEliminare: motivi.length === 0, motivi: motivi };
+      });
+  }
+
+  function elimina(giornataId) {
+    return analizzaEliminazione(giornataId).then(function (a) {
+      if (!a.puoEliminare) {
+        throw new Error('La giornata contiene ' + a.motivi.join(' e ') +
+          ': si può annullare, non eliminare.');
+      }
+      return App.data.repo.scrivi(['giornate'], function (t) {
+        t.elimina('giornate', giornataId);
+      }).then(function () { return true; });
+    });
+  }
+
   function cambiaStato(giornataId, stato) {
     if (!App.costanti.statoGiornataValido(stato)) {
       return Promise.reject(new Error('Stato della giornata non valido.'));
@@ -174,6 +205,8 @@
     crea: crea,
     aggiorna: aggiorna,
     cambiaStato: cambiaStato,
+    analizzaEliminazione: analizzaEliminazione,
+    elimina: elimina,
     elenco: elenco,
     scheda: scheda,
     ordina: ordina,

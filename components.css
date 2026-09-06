@@ -921,7 +921,14 @@
 
 /* marchio discreto in cima alla Home */
 .marchio-riga { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-.marchio-riga .logo { width: 40px; height: 40px; border-radius: 9px; display: block; }
+/* Il marchio della squadra e' un tondo su fondo bianco: si mostra tondo. */
+.marchio-riga .logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: block;
+  background: #fff;
+}
 .marchio-riga .marchio {
   font-size: 1.35rem; font-weight: 800; color: var(--arancio); line-height: 1;
 }

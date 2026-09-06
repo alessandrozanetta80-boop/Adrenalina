@@ -88,7 +88,7 @@
       C.monta(
         // --- marchio, discreto ---
         '<div class="marchio-riga">' +
-          '<img class="logo" src="icona-192.png" alt="" width="40" height="40">' +
+          '<img class="logo" src="icona-192.png" alt="" width="52" height="52">' +
           '<div>' +
             '<div class="marchio">Adrenalina</div>' +
             '<div class="stagione">' +

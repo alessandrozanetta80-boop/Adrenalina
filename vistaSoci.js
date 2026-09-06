@@ -2,7 +2,9 @@
   'use strict';
   var App = global.App;
   App.ui.viste = App.ui.viste || {};
-  var mostraInattivi = true;
+  // Di partenza si vedono i soci attivi: quelli delle stagioni passate
+  // restano disponibili con la spunta, senza allungare la rubrica.
+  var mostraInattivi = false;
 
   function render() {
     var C = App.ui.componenti;

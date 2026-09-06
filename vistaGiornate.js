@@ -107,23 +107,35 @@
 
         var gruppi = [];
         var correnteMese = null;
-        dati.righe.forEach(function (r) {
+        // Il calendario elenca le date di battuta previste. Le giornate
+        // create fuori da quelle date restano raggiungibili, ma in coda
+        // e sotto un titolo che dice chiaramente cosa sono.
+        var inCalendario = dati.righe.filter(function (r) { return !r.fuoriCalendario; });
+        var fuori = dati.righe.filter(function (r) { return r.fuoriCalendario; });
+
+        inCalendario.forEach(function (r) {
           var m = titoloMese(r.data);
           if (m !== correnteMese) { gruppi.push({ mese: m, righe: [] }); correnteMese = m; }
           gruppi[gruppi.length - 1].righe.push(r);
         });
 
-        var compilate = dati.righe.filter(function (r) { return !!r.giornata; }).length;
+        var compilate = inCalendario.filter(function (r) { return !!r.giornata; }).length;
 
         C.monta(
           '<div class="sezione">' +
-            '<p class="nota-piccola">' + dati.righe.length + ' date di battuta · ' +
+            '<p class="nota-piccola">' + inCalendario.length + ' date di battuta · ' +
             compilate + ' preparate. Tocca una data per aprirla o prepararla.</p>' +
           '</div>' +
           gruppi.map(function (g) {
             return '<div class="sezione"><h3>' + C.esc(g.mese) + '</h3>' +
               '<div class="lista">' + g.righe.map(riga).join('') + '</div></div>';
-          }).join(''));
+          }).join('') +
+          (fuori.length
+            ? '<div class="sezione"><h3>Fuori calendario</h3>' +
+              '<p class="nota-piccola">Giornate registrate in date che non ' +
+              'appartengono al calendario di questa stagione.</p>' +
+              '<div class="lista">' + fuori.map(riga).join('') + '</div></div>'
+            : ''));
       });
     });
   }

@@ -49,6 +49,15 @@
           '<button class="btn btn-largo" id="btn-importa">Scegli file e importa</button>' +
         '</div></div>' +
 
+        '<div class="sezione"><h3>Stagione dimostrativa</h3><div class="card">' +
+          '<p style="margin:0 0 10px">Carica <strong>gennaio 2026</strong>: sette battute ' +
+          'vere della squadra, con presenze, capi, carne divisa, venduta e messa da parte ' +
+          'per i salamini, compensazioni e ospite. Serve a far vedere come lavora l\u2019app ' +
+          'su una stagione intera.</p>' +
+          '<button class="btn btn-contorno" id="btn-carica-gennaio">' +
+          'Carica gennaio 2026</button>' +
+        '</div></div>' +
+
         '<div class="sezione"><h3>Dati di prova</h3><div class="card">' +
           (totDemo === 0
             ? '<p>Nessun dato di prova presente.</p>'
@@ -120,6 +129,22 @@
             });
           });
         }).catch(function (e) { C.toast(e.message, 'errore'); });
+      });
+
+      document.getElementById('btn-carica-gennaio').addEventListener('click', function () {
+        var b = document.getElementById('btn-carica-gennaio');
+        b.disabled = true;
+        Promise.resolve()
+          .then(function () { return App.seed.gennaio2026.inserisci(); })
+          .then(function (r) {
+            C.toast('Gennaio 2026 caricato: ' + r.giornate + ' battute, ' +
+              r.capi + ' capi.');
+            App.ui.router.vai('#/stagioni');
+          })
+          .catch(function (e) {
+            b.disabled = false;
+            C.toast(e.message, 'errore');
+          });
       });
 
       document.getElementById('btn-demo').addEventListener('click', function () {

@@ -28,9 +28,11 @@
       return Promise.all([
         App.core.capo.perGiornata(params.id),
         App.core.presenza.perGiornata(params.id),
-        App.core.carne.perGiornata(params.id)
+        App.core.carne.perGiornata(params.id),
+        App.core.giornata.analizzaEliminazione(params.id)
       ]).then(function (r) {
-        return { dati: dati, capi: r[0], partecipanti: r[1], carne: r[2] };
+        return { dati: dati, capi: r[0], partecipanti: r[1], carne: r[2],
+          eliminabile: r[3].puoEliminare };
       });
     }).then(function (pacchetto) {
       var dati = pacchetto.dati;
@@ -181,14 +183,42 @@
             '<p class="testo-note">' + C.esc(g.note) + '</p></div>'
           : '') +
 
-        // --- E. azione secondaria ---
-        '<div class="sezione">' +
+        // --- E. azioni secondarie ---
+        '<div class="sezione pila">' +
           '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
             '/modifica">Modifica giornata</button>' +
+          (pacchetto.eliminabile
+            ? '<button class="btn btn-pericolo-tenue" id="btn-elimina-giornata">' +
+              'Elimina giornata</button>'
+            : '') +
         '</div>' +
+        (pacchetto.eliminabile
+          ? '<p class="nota-piede">La giornata è ancora vuota, quindi si può ' +
+            'eliminare. Appena avrà partecipanti o capi si potrà solo annullare.</p>'
+          : '') +
 
         (dellaStagioneAttiva ? '' :
           '<p class="nota-piede">Questa giornata appartiene a una stagione non attiva.</p>'));
+
+      var btnElimina = document.getElementById('btn-elimina-giornata');
+      if (btnElimina) {
+        btnElimina.addEventListener('click', function () {
+          C.conferma({
+            titolo: 'Eliminare questa giornata?',
+            testo: 'La giornata del ' + C.formattaData(g.data) +
+              ' verrà rimossa. È ancora vuota, quindi non si perde nulla.',
+            conferma: 'Elimina',
+            annulla: 'Torna indietro',
+            pericolo: true
+          }).then(function (si) {
+            if (!si) return;
+            App.core.giornata.elimina(g.id).then(function () {
+              C.toast('Giornata eliminata.');
+              App.ui.router.vai('#/giornate');
+            }).catch(function (e) { C.toast(e.message, 'errore'); });
+          });
+        });
+      }
 
       // ---------- interazione sui partecipanti ----------
       var elenco = document.querySelector('.elenco-partecipanti');
