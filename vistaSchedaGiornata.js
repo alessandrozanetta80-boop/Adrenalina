@@ -27,9 +27,10 @@
       if (!dati) return { dati: null, capi: null, partecipanti: null };
       return Promise.all([
         App.core.capo.perGiornata(params.id),
-        App.core.presenza.perGiornata(params.id)
+        App.core.presenza.perGiornata(params.id),
+        App.core.carne.perGiornata(params.id)
       ]).then(function (r) {
-        return { dati: dati, capi: r[0], partecipanti: r[1] };
+        return { dati: dati, capi: r[0], partecipanti: r[1], carne: r[2] };
       });
     }).then(function (pacchetto) {
       var dati = pacchetto.dati;
@@ -142,6 +143,37 @@
           '<button class="btn btn-contorno" data-vai="#/capo/nuovo/' + C.esc(g.id) +
           '" style="margin-top:12px">+ Registra abbattimento</button>' +
         '</div>' +
+
+        // --- C-bis. carne della battuta ---
+        (function () {
+          var K = App.core.carne;
+          var c = pacchetto.carne;
+          if (!c) {
+            return '<div class="sezione"><h3>Carne della battuta</h3>' +
+              '<p class="nota-piede">Carne non registrata.</p>' +
+              '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
+              '/carne">Registra carne</button></div>';
+          }
+          var quota = c.numeroPartecipanti
+            ? Math.floor(c.disponibileGrammi / c.numeroPartecipanti) : 0;
+          var credito = c.numeroPartecipanti
+            ? Math.floor(c.vendutoGrammi / c.numeroPartecipanti) : 0;
+          return '<div class="sezione"><h3>Carne della battuta' +
+            '<span class="contatore">' + C.esc(K.formattaKg(c.disponibileGrammi)) + '</span></h3>' +
+            '<div class="card"><dl class="dettaglio">' +
+              riga('Partecipanti', String(c.numeroPartecipanti)) +
+              riga('Quota teorica', C.esc(K.formattaKg(quota)) + ' a testa') +
+              riga('Venduta', C.esc(K.formattaKg(c.vendutoGrammi))) +
+              riga('Ritirata', C.esc(K.formattaKg(c.ritiratoGrammi))) +
+              riga('Residua', C.esc(K.formattaKg(c.residuoGrammi))) +
+              riga('Ricavo', '<strong>' +
+                C.esc(App.core.quote.formattaEuro(c.ricavoTotaleCent)) + '</strong>') +
+              riga('Credito maturato', C.esc(K.formattaKg(credito)) + ' a testa') +
+            '</dl>' +
+            '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
+            '/carne" style="margin-top:12px">Gestisci carne</button>' +
+            '</div></div>';
+        })() +
 
         // --- D. note ---
         (g.note

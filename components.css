@@ -1153,3 +1153,110 @@
 .lista .voce-giornata .principale { display: block; }
 .lista .voce-capo .fascia-annullato,
 .lista .voce-capo .riga-sanitaria { display: none; }
+
+/* ============================================================
+   Blocco 5 — calendario battute e carne.
+   ============================================================ */
+
+/* riga del calendario: data a sinistra, stato a destra */
+.voce-data { align-items: center; }
+.voce-data .quando {
+  flex: 0 0 auto;
+  width: 62px;
+  font-weight: 700;
+  font-size: .95rem;
+  font-variant-numeric: tabular-nums;
+}
+.voce-data.passata { opacity: .72; }
+.voce-data .principale { min-width: 0; }
+.stato.da-compilare { color: var(--verde); font-weight: 650; }
+.stato.non-registrata { color: var(--testo-tenue); font-weight: 500; font-style: italic; }
+.stato.programmata { color: var(--testo-tenue); }
+
+/* numeri della carne di una battuta */
+.strip-carne {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+  background: var(--verde-chiaro);
+  border: 1px solid #cfe0d6;
+  border-left: 5px solid var(--verde);
+  border-radius: var(--raggio);
+  padding: 14px 10px;
+}
+.strip-carne b {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.strip-carne span { font-size: .74rem; color: var(--testo-tenue); }
+
+/* riga di vendita */
+.voce-vendita .alta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.voce-vendita .importo { font-weight: 800; font-variant-numeric: tabular-nums; }
+.voce-vendita.annullata { opacity: .6; }
+.voce-vendita.annullata .titolo { text-decoration: line-through; }
+.voce .mini {
+  flex: 0 0 auto;
+  min-height: var(--tocco);
+  padding: 0 12px;
+  border: 1px solid var(--bordo-forte, #c8ccc6);
+  border-radius: 10px;
+  background: var(--superficie);
+  font-size: .8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+/* limiti mostrati prima di un ritiro */
+.riquadro-limiti {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--bordo);
+  border-left: 5px solid var(--avviso);
+  border-radius: var(--raggio);
+  background: var(--superficie);
+}
+.riquadro-limiti > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.riquadro-limiti span { font-size: .85rem; color: var(--testo-tenue); }
+.riquadro-limiti b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
+/* riepilogo carne dei soci */
+.voce-carne-socio .sotto + .sotto { margin-top: 2px; }
+.ok-testo { color: var(--ok); font-weight: 700; }
+.sotto-titolo {
+  margin: 0 0 8px;
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--testo-tenue);
+}
+.blocco-oggi .zona.da-preparare { color: var(--testo-tenue); font-style: italic; }
+
+/* riga del calendario battute: data grande, dettaglio su una riga, stato a destra */
+.voce-data { align-items: center; }
+.voce-data .titolo { font-size: 1rem; font-weight: 700; }
+.voce-data .sotto {
+  font-size: .8rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.voce-data .stato { flex: 0 0 auto; font-size: .76rem; }
+.voce-data.passata .titolo { color: var(--testo-tenue); font-weight: 650; }
+.stato.da-compilare { color: var(--verde); }
+.stato.non-registrata { color: var(--bordo-forte, #c8ccc6); font-weight: 600; }

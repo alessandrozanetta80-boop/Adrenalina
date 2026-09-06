@@ -34,8 +34,14 @@
         // La stagione mostrata e' quella DELLA GIORNATA, che puo' non essere
         // quella attiva. Modificare una giornata non la sposta mai di stagione.
         var stagioneGiornata = dati.stagione || null;
+        var dataDaCalendario = nuova && !!params.data;
         C.intestazione({
-          titolo: nuova ? 'Nuova giornata' : 'Modifica giornata',
+          titolo: nuova
+            ? (dataDaCalendario
+                ? App.ui.viste.giornate.giornoSettimana(params.data) + ' ' +
+                  C.formattaData(params.data)
+                : 'Nuova giornata')
+            : 'Modifica giornata',
           sotto: stagioneGiornata ? 'Stagione ' + stagioneGiornata.nome : '',
           indietro: indietro
         });
@@ -57,7 +63,11 @@
           '<div class="sezione"><h3>Quando</h3>' +
             '<div class="due-colonne">' +
               '<div class="campo"><label for="g-data">Data</label>' +
-                '<input type="date" id="g-data" value="' + C.esc(g ? g.data : '') + '">' +
+                '<input type="date" id="g-data" value="' +
+                C.esc(g ? g.data : (params.data || '')) + '">' +
+                (dataDaCalendario
+                  ? '<div class="aiuto">Data scelta dal calendario battute.</div>'
+                  : '') +
                 '<div class="errore" id="err-g-data"></div></div>' +
               '<div class="campo"><label for="g-orario">Orario ritrovo</label>' +
                 '<input type="time" id="g-orario" value="' +

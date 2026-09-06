@@ -10,8 +10,18 @@
       App.core.membro.elenco(),
       App.data.giornate.tutte(),
       App.data.abbattimenti.tutti(),
-      App.data.presenze.tutte()
+      App.data.presenze.tutte(),
+      App.core.squadra.contesto().then(function (c) {
+        return c.stagioneAttiva
+          ? Promise.all([
+              App.core.calendarioBattute.elenco(c.stagioneAttiva.id),
+              App.core.carne.riepilogoStagione(c.stagioneAttiva.id)
+            ])
+          : [null, null];
+      })
     ]).then(function (r) {
+      var calendario = r[4] ? r[4][0] : null;
+      var carne = r[4] ? r[4][1] : null;
       var dati = r[0];
       var ctx = dati.contesto;
       var Q = App.core.quote;
@@ -42,10 +52,19 @@
 
       // Prossima giornata: la piu' vicina fra quelle non passate e non annullate.
       var oggi = App.core.giornata.oggiIso();
-      var future = giornateStagione.filter(function (g) {
-        return String(g.data) >= oggi && g.stato !== 'ANNULLATA';
-      }).sort(function (a, b) { return String(a.data).localeCompare(String(b.data)); });
-      var prossima = future[0] || null;
+      // La prossima battuta esce dal calendario configurato: puo' essere una
+      // data ancora da preparare, senza nessun record giornata.
+      var rigaCalendario = calendario
+        ? App.core.calendarioBattute.prossimaData(calendario.righe, oggi) : null;
+      var prossima = rigaCalendario ? rigaCalendario.giornata : null;
+      var dataProssima = rigaCalendario ? rigaCalendario.data : null;
+      if (!rigaCalendario) {
+        var future = giornateStagione.filter(function (g) {
+          return String(g.data) >= oggi && g.stato !== 'ANNULLATA';
+        }).sort(function (a, b) { return String(a.data).localeCompare(String(b.data)); });
+        prossima = future[0] || null;
+        dataProssima = prossima ? prossima.data : null;
+      }
 
       C.intestazione({ nascosta: true });
 
@@ -53,6 +72,7 @@
 
       var capocacciaProssima = prossima && prossima.capocacciaMembroId
         ? membriPerId[prossima.capocacciaMembroId] : null;
+      var daPreparare = !!dataProssima && !prossima;
       var presentiProssima = prossima
         ? r[3].filter(function (p) {
             return p.giornataId === prossima.id &&
@@ -80,33 +100,39 @@
         '</div>' +
 
         // --- cosa succede adesso ---
-        (prossima
+        (dataProssima
           ? '<div class="blocco-oggi">' +
               '<div class="quando-etichetta">' +
-                (String(prossima.data) === oggi ? 'Oggi' : 'Prossima battuta') +
+                (String(dataProssima) === oggi ? 'Oggi' : 'Prossima battuta') +
               '</div>' +
               '<div class="data">' +
-                C.esc(V.giornoSettimana(prossima.data)) + ' ' +
-                C.esc(C.formattaData(prossima.data)) +
+                C.esc(V.giornoSettimana(dataProssima)) + ' ' +
+                C.esc(C.formattaData(dataProssima)) +
               '</div>' +
-              '<div class="zona">' + C.esc(prossima.zona || 'Zona non indicata') + '</div>' +
-              '<div class="meta">' +
-                (prossima.orarioRitrovo ? 'Ritrovo ' + C.esc(prossima.orarioRitrovo) : 'Orario da definire') +
-                ' · ' +
-                (capocacciaProssima
-                  ? 'Capocaccia ' + C.esc(C.nomeCompleto(capocacciaProssima))
-                  : 'capocaccia da assegnare') +
-              '</div>' +
-              '<div class="numeri">' +
-                '<div><b>' + presentiProssima + '</b><span>partecipanti</span></div>' +
-                '<div><b>' + capiProssima + '</b><span>capi</span></div>' +
-              '</div>' +
-              '<button class="btn btn-azione" data-vai="#/giornata/' + C.esc(prossima.id) +
-                '">Apri giornata</button>' +
+              (daPreparare
+                ? '<div class="zona da-preparare">Da compilare</div>' +
+                  '<div class="meta">Nessuna battuta ancora preparata per questa data.</div>' +
+                  '<button class="btn btn-azione" data-vai="#/giornata/nuova/' +
+                    C.esc(dataProssima) + '">Prepara giornata</button>'
+                : '<div class="zona">' + C.esc(prossima.zona || 'Zona non indicata') + '</div>' +
+                  '<div class="meta">' +
+                    (prossima.orarioRitrovo
+                      ? 'Ritrovo ' + C.esc(prossima.orarioRitrovo)
+                      : 'Orario da definire') + ' · ' +
+                    (capocacciaProssima
+                      ? 'Capocaccia ' + C.esc(C.nomeCompleto(capocacciaProssima))
+                      : 'capocaccia da assegnare') +
+                  '</div>' +
+                  '<div class="numeri">' +
+                    '<div><b>' + presentiProssima + '</b><span>partecipanti</span></div>' +
+                    '<div><b>' + capiProssima + '</b><span>capi</span></div>' +
+                  '</div>' +
+                  '<button class="btn btn-azione" data-vai="#/giornata/' + C.esc(prossima.id) +
+                    '">Apri giornata</button>') +
             '</div>'
           : '<div class="blocco-oggi vuota">' +
               '<div class="quando-etichetta">Nessuna battuta in programma</div>' +
-              '<button class="btn btn-azione" data-vai="#/giornate">Vai alle giornate</button>' +
+              '<button class="btn btn-azione" data-vai="#/giornate">Apri il calendario</button>' +
             '</div>') +
 
         // --- la stagione in tre numeri, senza cornici ---
@@ -115,6 +141,21 @@
           '<div><b>' + giornateStagione.length + '</b><span>giornate</span></div>' +
           '<div><b>' + numCapi + '</b><span>capi</span></div>' +
         '</div>' +
+
+        // --- carne della stagione, riga secondaria ---
+        (carne
+          ? '<div class="sezione"><div class="lista">' +
+              '<button class="voce" data-vai="#/carne">' +
+                '<span class="principale">' +
+                  '<span class="titolo">Carne stagione</span>' +
+                  '<span class="sotto">' +
+                    C.esc(App.core.carne.formattaKg(carne.totali.vendutoGrammi)) + ' venduti · ' +
+                    C.esc(Q.formattaEuro(carne.totali.ricavoTotaleCent)) + '</span>' +
+                '</span>' +
+                '<span class="freccia">&#8250;</span>' +
+              '</button>' +
+            '</div></div>'
+          : '') +
 
         // --- amministrazione, chiaramente secondaria ---
         '<div class="sezione">' +

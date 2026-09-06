@@ -74,6 +74,28 @@
     { codice: 'NON_VALUTABILE',    etichetta: 'Non valutabile' }
   ];
 
+  // --- Fase 5: calendario battute ---
+  // getDay() di JavaScript: 0 = domenica.
+  var GIORNI_SETTIMANA = [
+    { codice: 'LUNEDI',    etichetta: 'Lunedì',    breve: 'Lun', indice: 1 },
+    { codice: 'MARTEDI',   etichetta: 'Martedì',   breve: 'Mar', indice: 2 },
+    { codice: 'MERCOLEDI', etichetta: 'Mercoledì', breve: 'Mer', indice: 3 },
+    { codice: 'GIOVEDI',   etichetta: 'Giovedì',   breve: 'Gio', indice: 4 },
+    { codice: 'VENERDI',   etichetta: 'Venerdì',   breve: 'Ven', indice: 5 },
+    { codice: 'SABATO',    etichetta: 'Sabato',    breve: 'Sab', indice: 6 },
+    { codice: 'DOMENICA',  etichetta: 'Domenica',  breve: 'Dom', indice: 0 }
+  ];
+
+  // --- Fase 5: carne ---
+  // Prezzi iniziali in centesimi al chilo. Sono solo il valore proposto:
+  // ogni vendita salva il prezzo davvero applicato in quel momento.
+  var TIPI_TAGLIO = [
+    { codice: 'MEZZENA',    etichetta: 'Mezzena',    prezzoCentKg: 1000 },
+    { codice: 'MACINATA',   etichetta: 'Macinata',   prezzoCentKg: 1200 },
+    { codice: 'POLPA',      etichetta: 'Polpa',      prezzoCentKg: 1500 },
+    { codice: 'SPEZZATINO', etichetta: 'Spezzatino', prezzoCentKg: 1500 }
+  ];
+
   var STATO_QUOTA = {
     NON_APPLICABILE: 'NON_APPLICABILE',
     NON_PAGATA: 'NON_PAGATA',
@@ -99,6 +121,35 @@
     RUOLI_VENATORI: RUOLI_VENATORI,
     STATI_GIORNATA: STATI_GIORNATA,
     SESSI: SESSI,
+    GIORNI_SETTIMANA: GIORNI_SETTIMANA,
+    TIPI_TAGLIO: TIPI_TAGLIO,
+    OBBLIGO_VENDITA_GRAMMI_PREDEFINITO: 20000,
+    CALENDARIO_NOME_PREDEFINITO: 'CA VCO1 — Cinghiale in battuta',
+    etichettaGiorno: function (c) { return etichettaDa(GIORNI_SETTIMANA, c); },
+    giornoValido: function (c) {
+      return GIORNI_SETTIMANA.some(function (g) { return g.codice === c; });
+    },
+    indiceGiorno: function (c) {
+      var g = GIORNI_SETTIMANA.filter(function (x) { return x.codice === c; })[0];
+      return g ? g.indice : -1;
+    },
+    codiceGiornoDaIndice: function (i) {
+      var g = GIORNI_SETTIMANA.filter(function (x) { return x.indice === i; })[0];
+      return g ? g.codice : null;
+    },
+    etichettaTaglio: function (c) { return etichettaDa(TIPI_TAGLIO, c); },
+    taglioValido: function (c) {
+      return TIPI_TAGLIO.some(function (t) { return t.codice === c; });
+    },
+    prezzoPredefinito: function (c) {
+      var t = TIPI_TAGLIO.filter(function (x) { return x.codice === c; })[0];
+      return t ? t.prezzoCentKg : 0;
+    },
+    prezziPredefiniti: function () {
+      var out = {};
+      TIPI_TAGLIO.forEach(function (t) { out[t.codice] = t.prezzoCentKg; });
+      return out;
+    },
     STATI_TRICHINELLA: STATI_TRICHINELLA,
     STATO_TRICHINELLA_PREDEFINITO: 'IN_ATTESA',
     ETICHETTA_SANITARIO_ASSENTE: 'Non registrato',

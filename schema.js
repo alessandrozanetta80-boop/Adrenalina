@@ -92,12 +92,67 @@
         { nome: 'by_abbattimento', keyPath: 'abbattimentoId', opzioni: { unique: true } }
       ],
       versione: 4
+    },
+    // --- schema versione 5: calendario battute e carne ---
+    {
+      nome: 'calendariBattuta',
+      keyPath: 'id',
+      indici: [
+        { nome: 'by_stagione', keyPath: 'stagioneId', opzioni: { unique: true } }
+      ],
+      versione: 5
+    },
+    {
+      nome: 'configCarne',
+      keyPath: 'id',
+      indici: [
+        { nome: 'by_stagione', keyPath: 'stagioneId', opzioni: { unique: true } }
+      ],
+      versione: 5
+    },
+    {
+      nome: 'lottiCarne',
+      keyPath: 'id',
+      indici: [
+        // Al massimo un lotto carne per giornata.
+        { nome: 'by_giornata', keyPath: 'giornataId', opzioni: { unique: true } },
+        { nome: 'by_stagione', keyPath: 'stagioneId' }
+      ],
+      versione: 5
+    },
+    {
+      nome: 'quoteCarne',
+      keyPath: 'id',
+      indici: [
+        { nome: 'by_lotto',  keyPath: 'lottoCarneId' },
+        { nome: 'by_membro', keyPath: 'membroId' },
+        { nome: 'by_lotto_membro', keyPath: ['lottoCarneId', 'membroId'], opzioni: { unique: true } }
+      ],
+      versione: 5
+    },
+    {
+      nome: 'venditeCarne',
+      keyPath: 'id',
+      indici: [
+        { nome: 'by_lotto', keyPath: 'lottoCarneId' }
+      ],
+      versione: 5
+    },
+    {
+      nome: 'ritiriCarne',
+      keyPath: 'id',
+      indici: [
+        { nome: 'by_membro',   keyPath: 'membroId' },
+        { nome: 'by_stagione', keyPath: 'stagioneId' },
+        { nome: 'by_lotto',    keyPath: 'lottoCarneId' }
+      ],
+      versione: 5
     }
   ];
 
   App.data.schema = {
     dbName: 'adrenalinaDB',
-    dbVersion: 4,
+    dbVersion: 5,
     stores: STORES,
     // Store introdotti da una specifica versione dello schema.
     storesDiVersione: function (v) {
@@ -108,6 +163,8 @@
     nomiStoreBackup: STORES.map(function (s) { return s.nome; }),
     // Store che contengono record marcabili demo.
     nomiStoreDemo: ['squadre', 'stagioni', 'membri', 'iscrizioni',
-                    'giornate', 'presenze', 'abbattimenti', 'controlliSanitari']
+                    'giornate', 'presenze', 'abbattimenti', 'controlliSanitari',
+                    'calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+                    'venditeCarne', 'ritiriCarne']
   };
 })(typeof window !== 'undefined' ? window : globalThis);

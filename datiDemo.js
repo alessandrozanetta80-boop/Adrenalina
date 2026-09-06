@@ -124,12 +124,7 @@
     });
 
     // ---------- da qui in poi: SOLO DATI FITTIZI (demo:true) ----------
-    // Date relative a oggi, cosi' restano sensate col passare del tempo.
-    function dataRelativa(giorni) {
-      var d = new Date();
-      d.setDate(d.getDate() + giorni);
-      return App.core.calendario.oggi(d);
-    }
+    // Le date cadono dentro la stagione 2026/2027 e sul calendario CA VCO1.
     function idMembro(nomeCompleto) {
       var m = membri.filter(function (x) {
         return (x.nome + ' ' + x.cognome) === nomeCompleto;
@@ -137,23 +132,30 @@
       return m ? m.id : null;
     }
 
+    // Le giornate dimostrative cadono su date reali del calendario
+    // CA VCO1 (mercoledi', sabato, domenica).
     var modelliGiornate = [
-      { data: dataRelativa(-21), orario: '06:30', zona: 'Costa del Faggeto',
+      { data: '2026-10-04', orario: '06:30', zona: 'Costa del Faggeto',
         capocaccia: 'Pier Nolli', stato: 'COMPLETATA', note: 'Battuta mattutina.',
         presenze: { 'Pier Nolli': 'PRESENTE', 'Luca Malcotti': 'PRESENTE',
                     'Davide Zanotti': 'PRESENTE', 'Roberto Dido': 'LAVORO',
                     'Stefano Bianchi': 'ASSENTE' } },
-      { data: dataRelativa(-7), orario: '06:30', zona: 'Valle Scura',
+      // Battuta di riferimento del modulo carne: 10 partecipanti presenti.
+      { data: '2026-10-18', orario: '06:30', zona: 'Valle Scura',
         capocaccia: 'Luca Malcotti', stato: 'COMPLETATA', note: '',
         presenze: { 'Pier Nolli': 'PRESENTE', 'Luca Malcotti': 'PRESENTE',
-                    'Davide Zanotti': 'ASSENTE', 'Roberto Dido': 'PRESENTE' } },
-      { data: dataRelativa(-3), orario: '07:00', zona: 'Pian dei Lupi',
+                    'Davide Zanotti': 'PRESENTE', 'Roberto Dido': 'PRESENTE',
+                    'Stefano Bianchi': 'PRESENTE', 'Cristian Cerlini': 'PRESENTE',
+                    'Adriano De Giorgis': 'PRESENTE', 'Antonio Rinaldi': 'PRESENTE',
+                    'Cesare Bettini': 'PRESENTE', 'Federico Tonetti': 'PRESENTE',
+                    'Marco Mora': 'ASSENTE', 'Renato Borri': 'LAVORO' } },
+      { data: '2026-10-21', orario: '07:00', zona: 'Pian dei Lupi',
         capocaccia: null, stato: 'ANNULLATA', note: 'Annullata per maltempo.',
         presenze: {} },
-      { data: dataRelativa(4), orario: '06:30', zona: 'Costa del Faggeto',
+      { data: '2026-10-24', orario: '06:30', zona: 'Costa del Faggeto',
         capocaccia: 'Pier Nolli', stato: 'PROGRAMMATA', note: '',
         presenze: { 'Pier Nolli': 'PRESENTE', 'Roberto Dido': 'LAVORO' } },
-      { data: dataRelativa(11), orario: '06:30', zona: 'Fosso Grande',
+      { data: '2026-10-25', orario: '06:30', zona: 'Fosso Grande',
         capocaccia: null, stato: 'PROGRAMMATA', note: 'Capocaccia da assegnare.',
         presenze: {} }
     ];
@@ -251,18 +253,102 @@
         id: App.core.id.nuovo(App.core.id.CONTROLLO),
         abbattimentoId: capo.id,
         statoTrichinella: c.stato,
-        dataPrelievo: c.prelievo === null ? null : dataRelativa(c.prelievo),
-        dataEsito: c.esito === null ? null : dataRelativa(c.esito),
+        dataPrelievo: c.prelievo === null ? null : '2026-10-06',
+        dataEsito: c.esito === null ? null : '2026-10-08',
         riferimentoCampione: c.riferimento,
         note: c.note,
         demo: true
       }));
     });
 
+    // --- Calendario battute CA VCO1 (Fase 5) ---
+    var calendariBattuta = [App.data.repo.timbraCreazione({
+      id: App.core.id.nuovo(App.core.id.CALENDARIO),
+      stagioneId: idStagione,
+      nome: App.costanti.CALENDARIO_NOME_PREDEFINITO,
+      dataInizio: '2026-10-01',
+      dataFine: '2027-01-31',
+      giorniSettimana: ['MERCOLEDI', 'SABATO', 'DOMENICA'],
+      demo: false
+    })];
+
+    // --- Configurazione carne della stagione ---
+    var configCarne = [App.data.repo.timbraCreazione({
+      id: App.core.id.nuovo(App.core.id.CONFIG_CARNE),
+      stagioneId: idStagione,
+      obbligoVenditaGrammi: App.costanti.OBBLIGO_VENDITA_GRAMMI_PREDEFINITO,
+      prezziCentKg: App.costanti.prezziPredefiniti(),
+      demo: false
+    })];
+
+    // --- Esempio carne (Fase 5), tutto fittizio ---
+    // Battuta del 18/10 con 10 presenti: 100 kg netti, venduti interamente.
+    var lottiCarne = [];
+    var quoteCarne = [];
+    var venditeCarne = [];
+    var ritiriCarne = [];
+
+    var giornataCarne = giornate.filter(function (g) { return g.zona === 'Valle Scura'; })[0];
+    if (giornataCarne) {
+      var presentiCarne = presenze
+        .filter(function (p) {
+          return p.giornataId === giornataCarne.id && p.stato === 'PRESENTE';
+        })
+        .map(function (p) {
+          return membri.filter(function (m) { return m.id === p.membroId; })[0];
+        })
+        .filter(function (m) { return !!m; });
+      presentiCarne = App.core.carne.ordinaMembri(presentiCarne);
+
+      var idLotto = App.core.id.nuovo(App.core.id.LOTTO_CARNE);
+      var pesoNetto = 100000;   // 100,0 kg
+      lottiCarne.push(App.data.repo.timbraCreazione({
+        id: idLotto,
+        giornataId: giornataCarne.id,
+        squadraId: idSquadra,
+        stagioneId: idStagione,
+        pesoNettoDisponibileGrammi: pesoNetto,
+        note: 'Esempio dimostrativo.',
+        demo: true
+      }));
+
+      var parti = App.core.carne.ripartisci(pesoNetto, presentiCarne.length);
+      presentiCarne.forEach(function (m, i) {
+        quoteCarne.push(App.data.repo.timbraCreazione({
+          id: App.core.id.nuovo(App.core.id.QUOTA_CARNE),
+          lottoCarneId: idLotto,
+          membroId: m.id,
+          quotaSpettanteGrammi: parti[i],
+          demo: true
+        }));
+      });
+
+      [
+        { taglio: 'MEZZENA',  peso: 30000, prezzo: 1000 },
+        { taglio: 'MACINATA', peso: 30000, prezzo: 1200 },
+        { taglio: 'POLPA',    peso: 40000, prezzo: 1500 }
+      ].forEach(function (v) {
+        venditeCarne.push(App.data.repo.timbraCreazione({
+          id: App.core.id.nuovo(App.core.id.VENDITA_CARNE),
+          lottoCarneId: idLotto,
+          data: giornataCarne.data,
+          tipoTaglio: v.taglio,
+          pesoGrammi: v.peso,
+          prezzoCentKg: v.prezzo,
+          annullata: false,
+          note: '',
+          demo: true
+        }));
+      });
+    }
+
     return {
       squadra: squadra, stagione: stagione, membri: membri,
       iscrizioni: iscrizioni, giornate: giornate, presenze: presenze,
-      abbattimenti: abbattimenti, controlliSanitari: controlliSanitari
+      abbattimenti: abbattimenti, controlliSanitari: controlliSanitari,
+      calendariBattuta: calendariBattuta, configCarne: configCarne,
+      lottiCarne: lottiCarne, quoteCarne: quoteCarne,
+      venditeCarne: venditeCarne, ritiriCarne: ritiriCarne
     };
   }
 
@@ -270,7 +356,8 @@
     var d = costruisci();
     return App.data.repo.scrivi(
       ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate',
-       'presenze', 'abbattimenti', 'controlliSanitari'],
+       'presenze', 'abbattimenti', 'controlliSanitari', 'calendariBattuta',
+       'configCarne', 'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'],
       function (t) {
       t.put('squadre', d.squadra);
       t.put('stagioni', d.stagione);
@@ -280,6 +367,12 @@
       d.presenze.forEach(function (p) { t.put('presenze', p); });
       d.abbattimenti.forEach(function (a) { t.put('abbattimenti', a); });
       d.controlliSanitari.forEach(function (c) { t.put('controlliSanitari', c); });
+      d.calendariBattuta.forEach(function (c) { t.put('calendariBattuta', c); });
+      d.configCarne.forEach(function (c) { t.put('configCarne', c); });
+      d.lottiCarne.forEach(function (l) { t.put('lottiCarne', l); });
+      d.quoteCarne.forEach(function (q) { t.put('quoteCarne', q); });
+      d.venditeCarne.forEach(function (v) { t.put('venditeCarne', v); });
+      d.ritiriCarne.forEach(function (r) { t.put('ritiriCarne', r); });
       t.put('meta', { chiave: 'schemaVersion', valore: App.versione.SCHEMA_VERSION });
       t.put('meta', { chiave: 'squadraCorrenteId', valore: d.squadra.id });
       t.put('meta', { chiave: 'datiDemoPresenti', valore: true });

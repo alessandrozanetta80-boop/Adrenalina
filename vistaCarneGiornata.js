@@ -1,0 +1,229 @@
+(function (global) {
+  'use strict';
+  var App = global.App;
+  App.ui.viste = App.ui.viste || {};
+
+  function euro(cent) { return App.core.quote.formattaEuro(cent); }
+
+  function riga(etichetta, valore) {
+    return '<div class="dettaglio-riga"><dt>' + etichetta + '</dt><dd>' + valore + '</dd></div>';
+  }
+
+  // Schermata "Gestisci carne" di una singola battuta.
+  function render(params) {
+    var C = App.ui.componenti;
+    var K = App.core.carne;
+    var V = App.ui.viste.giornate;
+
+    return App.core.carne.perGiornata(params.id).then(function (r) {
+      if (r) return { modo: 'lotto', r: r };
+      return App.core.giornata.scheda(params.id).then(function (s) {
+        return { modo: 'nuovo', scheda: s };
+      });
+    }).then(function (pacchetto) {
+      if (pacchetto.modo === 'nuovo') return registraCarne(pacchetto.scheda, params);
+      return gestisci(pacchetto.r, params);
+    });
+
+    // ---------- primo inserimento: si fissa lo snapshot ----------
+    function registraCarne(scheda, params2) {
+      if (!scheda) { C.erroreSchermo('Giornata non trovata.'); return; }
+      var g = scheda.giornata;
+      return App.core.carne.presentiDiGiornata(g.id).then(function (presenti) {
+        C.intestazione({
+          titolo: 'Carne della battuta',
+          sotto: V.giornoSettimana(g.data) + ' ' + C.formattaData(g.data) +
+            (g.zona ? ' · ' + g.zona : ''),
+          indietro: '#/giornata/' + g.id
+        });
+
+        if (!presenti.length) {
+          C.monta('<div class="avviso-box">Nessun partecipante segnato come presente. ' +
+            'Registra prima i partecipanti alla battuta: la carne si divide fra loro.</div>' +
+            '<div class="sezione"><button class="btn btn-contorno" data-vai="#/giornata/' +
+            C.esc(g.id) + '">Torna alla giornata</button></div>');
+          return;
+        }
+
+        C.monta(
+          '<div class="sezione">' +
+            '<p class="nota-piccola">La carne netta non si ricava dal peso dei capi: ' +
+            'va pesata e inserita a mano. Verrà divisa fra i ' + presenti.length +
+            ' partecipanti presenti oggi, e questa divisione resterà fissa anche se ' +
+            'le presenze verranno corrette in seguito.</p>' +
+            '<div class="campo"><label for="c-peso">Carne netta disponibile (kg)</label>' +
+              '<input type="text" inputmode="decimal" id="c-peso" placeholder="es. 100">' +
+              '<div class="errore" id="err-c-peso"></div></div>' +
+            '<div class="campo"><label for="c-note">Note</label>' +
+              '<textarea id="c-note"></textarea></div>' +
+          '</div>' +
+          '<div class="sezione">' +
+            '<h3>Partecipanti alla battuta<span class="contatore">' + presenti.length + '</span></h3>' +
+            '<div class="lista">' + presenti.map(function (m) {
+              return '<div class="voce"><span class="principale">' +
+                '<span class="titolo">' + C.esc(C.nomeCompleto(m)) + '</span></span></div>';
+            }).join('') + '</div>' +
+          '</div>' +
+          '<div class="sezione">' +
+            '<button class="btn btn-azione" id="btn-salva-carne">Registra carne</button>' +
+          '</div>');
+
+        var inCorso = false;
+        document.getElementById('btn-salva-carne').addEventListener('click', function () {
+          if (inCorso) return;
+          var bottone = this;
+          var grammi = K.parseKgInGrammi(document.getElementById('c-peso').value);
+          var err = document.getElementById('err-c-peso');
+          err.textContent = '';
+          if (grammi === null || grammi <= 0) {
+            err.textContent = 'Indica un peso maggiore di zero, per esempio 100.';
+            return;
+          }
+          inCorso = true;
+          bottone.disabled = true;
+          bottone.setAttribute('aria-busy', 'true');
+          Promise.resolve().then(function () {
+            return App.core.carne.creaLotto(g.id, {
+              pesoNettoDisponibileGrammi: grammi,
+              note: document.getElementById('c-note').value
+            });
+          }).then(function () {
+            C.toast('Carne registrata.');
+            App.ui.router.vai('#/giornata/' + g.id + '/carne');
+          }).catch(function (e) {
+            inCorso = false;
+            bottone.disabled = false;
+            bottone.setAttribute('aria-busy', 'false');
+            if (e.errori && e.errori.pesoNettoDisponibileGrammi) {
+              err.textContent = e.errori.pesoNettoDisponibileGrammi;
+            } else C.toast(e.message, 'errore');
+          });
+        });
+      });
+    }
+
+    // ---------- gestione del lotto esistente ----------
+    function gestisci(r, params2) {
+      var g = r.giornata;
+      var quota = r.numeroPartecipanti
+        ? Math.floor(r.disponibileGrammi / r.numeroPartecipanti) : 0;
+      var creditoPerPersona = r.numeroPartecipanti
+        ? Math.floor(r.vendutoGrammi / r.numeroPartecipanti) : 0;
+
+      C.intestazione({
+        titolo: 'Carne della battuta',
+        sotto: (g ? V.giornoSettimana(g.data) + ' ' + C.formattaData(g.data) : '') +
+          (g && g.zona ? ' · ' + g.zona : ''),
+        indietro: '#/giornata/' + (g ? g.id : '')
+      });
+
+      C.monta(
+        '<div class="sezione">' +
+          '<div class="strip-carne">' +
+            '<div><b>' + C.esc(K.formattaKg(r.disponibileGrammi)) + '</b>' +
+              '<span>carne netta</span></div>' +
+            '<div><b>' + r.numeroPartecipanti + '</b><span>partecipanti</span></div>' +
+            '<div><b>' + C.esc(K.formattaKg(quota)) + '</b><span>quota a testa</span></div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="sezione">' +
+          '<h3>Vendite<span class="contatore">' +
+            C.esc(K.formattaKg(r.vendutoGrammi)) + '</span></h3>' +
+          (r.vendite.length
+            ? '<div class="lista">' + r.vendite.map(function (v) {
+                return '<div class="voce voce-vendita' + (v.annullata ? ' annullata' : '') + '">' +
+                  '<span class="principale">' +
+                    '<span class="alta">' +
+                      '<span class="titolo">' +
+                        C.esc(App.costanti.etichettaTaglio(v.tipoTaglio)) + '</span>' +
+                      '<span class="importo">' +
+                        C.esc(euro(K.ricavoCent(v.pesoGrammi, v.prezzoCentKg))) + '</span>' +
+                    '</span>' +
+                    '<span class="sotto">' + C.esc(K.formattaKg(v.pesoGrammi)) + ' × ' +
+                      C.esc(euro(v.prezzoCentKg)) + '/kg · ' +
+                      C.esc(C.formattaData(v.data)) +
+                      (v.annullata ? ' · annullata' : '') + '</span>' +
+                  '</span>' +
+                  '<button class="mini" data-vendita="' + C.esc(v.id) + '">' +
+                    (v.annullata ? 'Ripristina' : 'Annulla') + '</button>' +
+                '</div>';
+              }).join('') + '</div>'
+            : '<p class="nota-piede">Nessuna vendita registrata.</p>') +
+          '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g ? g.id : '') +
+          '/carne/vendita" style="margin-top:12px">+ Aggiungi vendita</button>' +
+        '</div>' +
+
+        (r.ritiri.length
+          ? '<div class="sezione"><h3>Ritiri dal lotto<span class="contatore">' +
+            C.esc(K.formattaKg(r.ritiratoGrammi)) + '</span></h3>' +
+            '<div class="lista">' + r.ritiri.map(function (x) {
+              var m = r.partecipanti.filter(function (p) {
+                return p.membro.id === x.membroId; })[0];
+              return '<div class="voce"><span class="principale">' +
+                '<span class="titolo">' +
+                  (m ? C.esc(C.nomeCompleto(m.membro)) : 'Socio') + '</span>' +
+                '<span class="sotto">' + C.esc(K.formattaKg(x.pesoGrammi)) + ' · ' +
+                  C.esc(C.formattaData(x.data)) +
+                  (x.annullato ? ' · annullato' : '') + '</span>' +
+              '</span></div>';
+            }).join('') + '</div></div>'
+          : '') +
+
+        '<div class="sezione"><h3>Riepilogo</h3>' +
+          '<div class="card"><dl class="dettaglio">' +
+            riga('Disponibile', C.esc(K.formattaKg(r.disponibileGrammi))) +
+            riga('Venduto', C.esc(K.formattaKg(r.vendutoGrammi))) +
+            riga('Ritirato', C.esc(K.formattaKg(r.ritiratoGrammi))) +
+            riga('Residuo', '<strong>' + C.esc(K.formattaKg(r.residuoGrammi)) + '</strong>') +
+            riga('Ricavo', '<strong>' + C.esc(euro(r.ricavoTotaleCent)) + '</strong>') +
+            riga('Credito maturato', C.esc(K.formattaKg(creditoPerPersona)) + ' a testa') +
+          '</dl></div>' +
+          '<p class="nota-piccola">Il credito nasce dalla carne effettivamente venduta: ' +
+          'chi ha partecipato potrà ritirarne altrettanta.</p>' +
+        '</div>' +
+
+        '<div class="sezione"><h3>Ripartizione</h3>' +
+          '<div class="lista">' + r.partecipanti.map(function (p) {
+            return '<div class="voce"><span class="principale">' +
+              '<span class="titolo">' + C.esc(C.nomeCompleto(p.membro)) + '</span>' +
+              '<span class="sotto">quota ' + C.esc(K.formattaKg(p.quotaSpettanteGrammi)) +
+                ' · venduto ' + C.esc(K.formattaKg(p.vendutoAttribuitoGrammi)) + '</span>' +
+            '</span></div>';
+          }).join('') + '</div>' +
+        '</div>' +
+
+        '<div class="sezione pila">' +
+          '<button class="btn btn-contorno" id="btn-modifica-peso">Correggi carne netta</button>' +
+        '</div>');
+
+      // annulla / ripristina una vendita
+      Array.prototype.forEach.call(document.querySelectorAll('[data-vendita]'), function (b) {
+        b.addEventListener('click', function () {
+          var id = b.getAttribute('data-vendita');
+          var v = r.vendite.filter(function (x) { return x.id === id; })[0];
+          App.core.carne.impostaVenditaAnnullata(id, !v.annullata).then(function () {
+            C.toast(v.annullata ? 'Vendita ripristinata.' : 'Vendita annullata.');
+            render(params2);
+          }).catch(function (e) { C.toast(e.message, 'errore'); });
+        });
+      });
+
+      document.getElementById('btn-modifica-peso').addEventListener('click', function () {
+        var attuale = K.kgPerInput(r.disponibileGrammi);
+        var valore = global.prompt
+          ? global.prompt('Carne netta disponibile in kg', attuale)
+          : null;
+        if (valore === null) return;
+        var grammi = K.parseKgInGrammi(valore);
+        if (grammi === null) { C.toast('Peso non valido.', 'errore'); return; }
+        App.core.carne.aggiornaPeso(r.lotto.id, grammi).then(function () {
+          C.toast('Carne netta aggiornata.');
+          render(params2);
+        }).catch(function (e) { C.toast(e.message, 'errore'); });
+      });
+    }
+  }
+
+  App.ui.viste.carneGiornata = { render: render };
+})(typeof window !== 'undefined' ? window : globalThis);

@@ -4,39 +4,58 @@
   App.ui.viste = App.ui.viste || {};
 
   var GIORNI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+  var MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio',
+    'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+
+  function pezzi(iso) {
+    var p = String(iso).slice(0, 10).split('-');
+    return { anno: Number(p[0]), mese: Number(p[1]), giorno: Number(p[2]) };
+  }
 
   function giornoSettimana(iso) {
     if (!iso) return '';
-    var p = String(iso).slice(0, 10).split('-');
-    if (p.length !== 3) return '';
-    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-    return GIORNI[d.getDay()] || '';
+    var p = pezzi(iso);
+    if (!p.anno) return '';
+    return GIORNI[new Date(p.anno, p.mese - 1, p.giorno).getDay()] || '';
+  }
+
+  function breve(iso) {
+    var p = pezzi(iso);
+    var g = giornoSettimana(iso);
+    return g.slice(0, 3) + ' ' + p.giorno + ' ' + MESI[p.mese - 1].toLowerCase();
+  }
+
+  function titoloMese(iso) {
+    var p = pezzi(iso);
+    return MESI[p.mese - 1] + ' ' + p.anno;
   }
 
   // Marcatore testuale davanti all'etichetta: lo stato resta riconoscibile
   // anche in bianco e nero o per chi non distingue i colori.
   var SEGNO = { PROGRAMMATA: '\u25CB', COMPLETATA: '\u2713', ANNULLATA: '\u2715' };
 
-  function classeStato(stato) {
-    if (stato === 'COMPLETATA') return 'stato completata';
-    if (stato === 'ANNULLATA') return 'stato annullata';
-    return 'stato programmata';
-  }
-
-  function etichettaStato(stato) {
-    return '<span class="' + classeStato(stato) + '">' + (SEGNO[stato] || '') + ' ' +
+  function etichettaStato(stato, passata) {
+    if (stato === 'DA_COMPILARE') {
+      return passata
+        ? '<span class="stato non-registrata">Non registrata</span>'
+        : '<span class="stato da-compilare">Da compilare</span>';
+    }
+    var classe = 'stato programmata';
+    if (stato === 'COMPLETATA') classe = 'stato completata';
+    else if (stato === 'ANNULLATA') classe = 'stato annullata';
+    return '<span class="' + classe + '">' + (SEGNO[stato] || '') + ' ' +
       App.ui.componenti.esc(App.costanti.etichettaStatoGiornata(stato)) + '</span>';
   }
 
   // La scheda giornata riusa questa funzione.
-  function badgeStato(stato) { return etichettaStato(stato); }
+  function badgeStato(stato) { return etichettaStato(stato, false); }
 
   function render() {
     var C = App.ui.componenti;
-    return App.core.giornata.elenco().then(function (dati) {
-      var ctx = dati.contesto;
+
+    return App.core.squadra.contesto().then(function (ctx) {
       C.intestazione({
-        titolo: 'Giornate',
+        titolo: 'Calendario battute',
         sotto: ctx.stagioneAttiva ? 'Stagione ' + ctx.stagioneAttiva.nome : 'Nessuna stagione attiva',
         indietro: '#/home'
       });
@@ -44,60 +63,74 @@
       if (!ctx.stagioneAttiva) {
         C.monta('<div class="vuoto"><h2>Nessuna stagione attiva</h2>' +
           '<p>Le giornate appartengono a una stagione. Attivane una per continuare.</p></div>' +
-          '<div class="sezione pila" style="margin-top:16px">' +
-          '<button class="btn btn-primario btn-largo" data-vai="#/stagioni">Vai a Stagioni</button>' +
-          '</div>');
+          '<div class="sezione"><button class="btn btn-contorno" data-vai="#/stagioni">' +
+          'Vai a Stagioni</button></div>');
         return;
       }
 
-      var oggi = App.core.giornata.oggiIso();
+      return App.core.calendarioBattute.elenco(ctx.stagioneAttiva.id).then(function (dati) {
+        var oggi = App.core.giornata.oggiIso();
 
-      function riga(r) {
-        var g = r.giornata;
-        return '<button class="voce voce-giornata' +
-          (g.stato === 'ANNULLATA' ? ' annullata' : '') +
-          '" data-vai="#/giornata/' + C.esc(g.id) + '">' +
-          '<span class="principale">' +
-            '<span class="alta">' +
-              '<span class="data">' + C.esc(giornoSettimana(g.data)) + ' ' +
-                C.esc(C.formattaData(g.data)) + '</span>' +
-              etichettaStato(g.stato) +
-            '</span>' +
-            '<span class="zona">' + C.esc(g.zona || 'Zona non indicata') + '</span>' +
-            '<span class="meta">' +
-              (g.orarioRitrovo ? C.esc(g.orarioRitrovo) + ' · ' : '') +
-              (r.capocaccia
-                ? C.esc(C.nomeCompleto(r.capocaccia))
-                : 'capocaccia da assegnare') +
-              ' · ' + r.presenti + ' partecipant' + (r.presenti === 1 ? 'e' : 'i') +
-            '</span>' +
-          '</span>' +
-          '<span class="freccia">&#8250;</span>' +
-        '</button>';
-      }
+        if (!dati.configurazione) {
+          C.monta('<div class="avviso-box">Il calendario delle battute non è ancora ' +
+            'configurato per questa stagione.</div>' +
+            '<div class="sezione"><button class="btn btn-contorno" data-vai="#/stagioni">' +
+            'Configura in Amministrazione</button></div>');
+          return;
+        }
 
-      var future = [], passate = [];
-      dati.righe.forEach(function (r) {
-        (String(r.giornata.data) >= oggi ? future : passate).push(r);
+        // Una riga per data potenziale. Nessun record giornata viene creato qui:
+        // le date sono derivate dalla configurazione della stagione.
+        function riga(r) {
+          var passata = r.data < oggi;
+          var vai = r.giornata
+            ? '#/giornata/' + r.giornata.id
+            : '#/giornata/nuova/' + r.data;
+          // La data e' l'informazione principale; il resto e' secondario
+          // e sta su una sola riga, per non gonfiare l'elenco.
+          var dettaglio = '';
+          if (r.giornata) {
+            dettaglio = (r.giornata.zona || 'Zona non indicata');
+            if (r.giornata.orarioRitrovo) dettaglio += ' · ' + r.giornata.orarioRitrovo;
+            if (r.lotto) dettaglio += ' · carne registrata';
+          }
+          return '<button class="voce voce-data' + (passata ? ' passata' : '') +
+            '" data-vai="' + vai + '">' +
+            '<span class="principale">' +
+              '<span class="titolo">' + C.esc(breve(r.data)) + '</span>' +
+              (dettaglio ? '<span class="sotto">' + C.esc(dettaglio) + '</span>' : '') +
+            '</span>' +
+            etichettaStato(r.stato, passata) +
+            '<span class="freccia">&#8250;</span>' +
+          '</button>';
+        }
+
+        var gruppi = [];
+        var correnteMese = null;
+        dati.righe.forEach(function (r) {
+          var m = titoloMese(r.data);
+          if (m !== correnteMese) { gruppi.push({ mese: m, righe: [] }); correnteMese = m; }
+          gruppi[gruppi.length - 1].righe.push(r);
+        });
+
+        var compilate = dati.righe.filter(function (r) { return !!r.giornata; }).length;
+
+        C.monta(
+          '<div class="sezione">' +
+            '<p class="nota-piccola">' + dati.righe.length + ' date di battuta · ' +
+            compilate + ' preparate. Tocca una data per aprirla o prepararla.</p>' +
+          '</div>' +
+          gruppi.map(function (g) {
+            return '<div class="sezione"><h3>' + C.esc(g.mese) + '</h3>' +
+              '<div class="lista">' + g.righe.map(riga).join('') + '</div></div>';
+          }).join(''));
       });
-
-      function gruppo(titolo, elenco, vuoto) {
-        return '<div class="sezione"><h3>' + titolo + '</h3>' +
-          (elenco.length
-            ? '<div class="lista">' + elenco.map(riga).join('') + '</div>'
-            : '<p class="nota-piede">' + vuoto + '</p>') +
-        '</div>';
-      }
-
-      C.monta(
-        '<div class="sezione">' +
-          '<button class="btn btn-azione" data-vai="#/giornata/nuova">' +
-          '+ Nuova giornata</button>' +
-        '</div>' +
-        gruppo('In programma', future, 'Nessuna giornata in programma.') +
-        gruppo('Passate', passate, 'Nessuna giornata passata.'));
     });
   }
 
-  App.ui.viste.giornate = { render: render, giornoSettimana: giornoSettimana, badgeStato: badgeStato };
+  App.ui.viste.giornate = {
+    render: render,
+    giornoSettimana: giornoSettimana,
+    badgeStato: badgeStato
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

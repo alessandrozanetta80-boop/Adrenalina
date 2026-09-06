@@ -14,10 +14,12 @@
       if (!dati) return { dati: null, presenze: 0 };
       var idStag = dati.contesto.stagioneAttiva ? dati.contesto.stagioneAttiva.id : null;
       // Conteggio derivato, calcolato ogni volta dai dati reali.
-      return (idStag
-        ? App.core.presenza.conteggioPresenze(idStag, params.id)
-        : Promise.resolve(0)
-      ).then(function (n) { return { dati: dati, presenze: n }; });
+      return Promise.all([
+        idStag ? App.core.presenza.conteggioPresenze(idStag, params.id) : 0,
+        idStag ? App.core.carne.riepilogoSocio(idStag, params.id) : null
+      ]).then(function (r) {
+        return { dati: dati, presenze: r[0], carne: r[1] };
+      });
     }).then(function (pacchetto) {
       var dati = pacchetto.dati;
       if (!dati) {
@@ -85,6 +87,40 @@
         '</dl></div></div>' +
 
         '<div class="sezione"><h3>Stagione attiva</h3>' + sezioneStagione + '</div>' +
+
+        // --- carne: due conti distinti, obbligo di vendita e credito ---
+        (function () {
+          var c = pacchetto.carne;
+          if (!c || !ctx.stagioneAttiva) return '';
+          var K = App.core.carne;
+          return '<div class="sezione"><h3>Carne — stagione ' +
+            C.esc(ctx.stagioneAttiva.nome) + '</h3>' +
+            '<div class="card"><p class="sotto-titolo">Vendita per la squadra</p>' +
+              '<dl class="dettaglio">' +
+                riga('Venduti', C.esc(K.formattaKg(c.vendutoAttribuitoGrammi))) +
+                riga('Obbligo', C.esc(K.formattaKg(c.obbligoGrammi))) +
+                (c.obbligoRaggiunto
+                  ? riga('Stato', '<span class="ok-testo">\u2713 Obiettivo raggiunto</span>')
+                  : riga('Restano', '<strong>' +
+                      C.esc(K.formattaKg(c.residuoObbligoGrammi)) + '</strong>')) +
+                (c.eccedenzaVenditaGrammi
+                  ? riga('Eccedenza', C.esc(K.formattaKg(c.eccedenzaVenditaGrammi)))
+                  : '') +
+              '</dl>' +
+            '</div>' +
+            '<div class="card" style="margin-top:10px">' +
+              '<p class="sotto-titolo">Credito carne</p>' +
+              '<dl class="dettaglio">' +
+                riga('Maturato', C.esc(K.formattaKg(c.creditoMaturatoGrammi))) +
+                riga('Ritirato', C.esc(K.formattaKg(c.creditoRitiratoGrammi))) +
+                riga('Disponibile', '<strong>' +
+                  C.esc(K.formattaKg(c.creditoDisponibileGrammi)) + '</strong>') +
+              '</dl>' +
+              '<p class="nota-piccola">Il credito è la carne già venduta per conto del ' +
+              'socio: resta a sua disposizione anche dopo aver assolto l\u2019obbligo.</p>' +
+            '</div>' +
+          '</div>';
+        })() +
 
         '<div class="sezione pila">' +
           '<button class="btn btn-primario btn-largo" data-vai="#/socio/' + C.esc(m.id) +

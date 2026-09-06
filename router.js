@@ -12,6 +12,7 @@
     { re: /^#\/socio\/([^/]+)$/,             vista: 'schedaSocio', params: function (m) { return { id: m[1] }; } },
     { re: /^#\/giornate$/,                   vista: 'giornate' },
     { re: /^#\/giornata\/nuova$/,            vista: 'formGiornata', params: function () { return {}; } },
+    { re: /^#\/giornata\/nuova\/(\d{4}-\d{2}-\d{2})$/, vista: 'formGiornata', params: function (m) { return { data: m[1] }; } },
     { re: /^#\/giornata\/([^/]+)\/modifica$/, vista: 'formGiornata', params: function (m) { return { id: m[1] }; } },
     { re: /^#\/giornata\/([^/]+)\/presenze$/, vista: 'presenze',     params: function (m) { return { id: m[1] }; } },
     { re: /^#\/giornata\/([^/]+)$/,          vista: 'schedaGiornata', params: function (m) { return { id: m[1] }; } },
@@ -21,6 +22,11 @@
     { re: /^#\/capo\/([^/]+)\/modifica$/,    vista: 'formCapo', params: function (m) { return { id: m[1] }; } },
     { re: /^#\/capo\/([^/]+)\/sanitario$/,   vista: 'formSanitario', params: function (m) { return { id: m[1] }; } },
     { re: /^#\/capo\/([^/]+)$/,              vista: 'schedaCapo', params: function (m) { return { id: m[1] }; } },
+    { re: /^#\/giornata\/([^/]+)\/carne\/vendita$/, vista: 'formVendita', params: function (m) { return { id: m[1] }; } },
+    { re: /^#\/giornata\/([^/]+)\/carne$/,   vista: 'carneGiornata', params: function (m) { return { id: m[1] }; } },
+    { re: /^#\/carne\/ritiro$/,              vista: 'formRitiro' },
+    { re: /^#\/carne$/,                      vista: 'carneStagione' },
+    { re: /^#\/calendario$/,                 vista: 'calendarioConfig' },
     { re: /^#\/stagioni$/,                   vista: 'stagioni' },
     { re: /^#\/backup$/,                     vista: 'backup' }
   ];
@@ -37,13 +43,15 @@
   var TAB = {
     home: 'home', configurazione: 'home',
     giornate: 'giornate', schedaGiornata: 'giornate', formGiornata: 'giornate',
-    presenze: 'giornate',
+    presenze: 'giornate', carneGiornata: 'giornate', formVendita: 'giornate',
+    carneStagione: 'home', formRitiro: 'home',
     abbattimenti: 'capi', schedaCapo: 'capi', formCapo: 'capi', formSanitario: 'capi',
     soci: 'squadra', schedaSocio: 'squadra', formSocio: 'squadra',
-    stagioni: 'home', backup: 'home'
+    stagioni: 'home', backup: 'home', calendarioConfig: 'giornate'
   };
 
   function evidenziaTab(nomeVista) {
+    if (typeof document === 'undefined' || !document) return;
     var barra = document.getElementById('barra-bassa');
     if (!barra) return;
     var attivo = TAB[nomeVista] || '';
@@ -63,7 +71,16 @@
     });
   }
 
+  // I disegni vengono messi in fila: un render lento non deve piu' arrivare
+  // dopo quello successivo e sovrascrivere la schermata giusta.
+  var inCorso = Promise.resolve();
+
   function disegna() {
+    inCorso = inCorso.then(disegnaOra, disegnaOra);
+    return inCorso;
+  }
+
+  function disegnaOra() {
     var hash = global.location.hash || '#/home';
     var rotta = null, m = null;
     for (var i = 0; i < ROTTE.length; i++) {

@@ -64,6 +64,12 @@
     PRESENZA: 'pre',
     ABBATTIMENTO: 'abb',
     CONTROLLO: 'san',
+    CALENDARIO: 'cal',
+    CONFIG_CARNE: 'cfc',
+    LOTTO_CARNE: 'lot',
+    QUOTA_CARNE: 'qtc',
+    VENDITA_CARNE: 'ven',
+    RITIRO_CARNE: 'rit',
     // solo per i test automatici
     _forzaFallback: function (v) { _forzaFallback = !!v; },
     _fallbackAttivo: function () { return _forzaFallback; }

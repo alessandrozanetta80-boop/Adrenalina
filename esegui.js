@@ -51,15 +51,19 @@ function normalizza(dati) {
     assert.ok(dom.window.document.body.textContent.includes('Adrenalina'));
   });
 
-  await prova('7a. Conteggi Home sull\'anagrafica reale (21 attivi, 5 pagate, 16 da incassare)',
+  await prova('7a. Conteggi Home sui dati iniziali (21 attivi, 4 pagate, 17 da incassare)',
     async () => {
       const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
-      assert.ok(t.includes('21Membri attivi'), 'membri attivi errati: ' + t);
-      assert.ok(t.includes('5 pagate'), 'quote pagate errate: ' + t);
-      assert.ok(t.includes('16Quote da incassare'), 'quote da incassare errate: ' + t);
-      // 16 soci x 240,00 € = 3.840,00 €; il separatore delle migliaia
-      // dipende dalla locale del motore, quindi si accetta con o senza punto.
+      assert.ok(t.includes('21soci'), 'soci errati: ' + t);
+      assert.ok(t.includes('17 quote da incassare'), 'quote da incassare errate: ' + t);
+      // 2 parziali da 120,00 € + 15 non pagate da 240,00 € = 3.840,00 €;
+      // il separatore delle migliaia dipende dalla locale del motore.
       assert.ok(/3\.?840,00 €/.test(t), 'residuo totale errato: ' + t);
+      const riep = await dom.window.App.core.quote.riepilogo(
+        (await dom.window.App.core.membro.elenco()).righe
+          .filter((x) => x.membro.attivo && x.iscrizione).map((x) => x.iscrizione));
+      assert.strictEqual(riep.pagate, 4, 'quote pagate errate');
+      assert.strictEqual(riep.daIncassare, 17, 'quote da incassare errate');
     });
 
   // ---------------------------------------------------------------- stati quota
@@ -225,11 +229,14 @@ function normalizza(dati) {
   });
 
   await prova('7b. Conteggi Home aggiornati dopo le modifiche', async () => {
-    await H.vaiA(dom, '#/home', 'Membri attivi');
+    await H.vaiA(dom, '#/home', 'Amministrazione');
     const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
-    assert.ok(t.includes('22Membri attivi'), 'attivi: ' + t);
-    assert.ok(t.includes('6 pagate'), 'pagate: ' + t);
-    assert.ok(t.includes('16Quote da incassare'), 'da incassare: ' + t);
+    assert.ok(t.includes('22soci'), 'attivi: ' + t);
+    assert.ok(t.includes('17 quote da incassare'), 'da incassare: ' + t);
+    const riep = await dom.window.App.core.quote.riepilogo(
+      (await dom.window.App.core.membro.elenco()).righe
+        .filter((x) => x.membro.attivo && x.iscrizione).map((x) => x.iscrizione));
+    assert.strictEqual(riep.pagate, 5, 'pagate: ' + riep.pagate);
   });
 
   // ---------------------------------------------------------------- stagioni
@@ -311,10 +318,13 @@ function normalizza(dati) {
       return d.squadre[0].stagioneAttivaId === idStagione1;
     }, 'stagione attiva tornata a 2026/2027');
 
-    await H.vaiA(dom, '#/home', 'Stagione attiva');
+    await H.vaiA(dom, '#/home', 'Amministrazione');
     const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
     assert.ok(t.includes('2026/2027'), 'home non mostra la stagione riattivata');
-    assert.ok(t.includes('6 pagate'), 'conteggi non tornati a quelli del 2026/2027: ' + t);
+    const riep = await dom.window.App.core.quote.riepilogo(
+      (await dom.window.App.core.membro.elenco()).righe
+        .filter((x) => x.membro.attivo && x.iscrizione).map((x) => x.iscrizione));
+    assert.strictEqual(riep.pagate, 5, 'conteggi non tornati a quelli del 2026/2027');
 
     const d = await leggiTutto(dom);
     const ora = JSON.stringify(d.iscrizioni.filter((i) => i.stagioneId === idStagione1)
@@ -354,11 +364,13 @@ function normalizza(dati) {
   await prova('10. Esportazione JSON', async () => {
     backupEsportato = await dom.window.App.core.backup.costruisciBackup();
     assert.strictEqual(backupEsportato.formato, 'adrenalina-backup');
-    assert.strictEqual(backupEsportato.schemaVersion, 4);
+    assert.strictEqual(backupEsportato.schemaVersion, 5);
     assert.ok(backupEsportato.appVersion);
     assert.ok(backupEsportato.esportatoIl);
     ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni',
-     'giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
+     'giornate', 'presenze', 'abbattimenti', 'controlliSanitari',
+     'calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => {
       assert.ok(Array.isArray(backupEsportato.dati[n]), 'store mancante nel backup: ' + n);
     });
     assert.ok(backupEsportato.dati.membri.length >= 7);
@@ -425,7 +437,7 @@ function normalizza(dati) {
     domCorrente = dom;
     const t = dom.window.document.body.textContent.replace(/\s+/g, ' ');
     assert.ok(t.includes('2026/2027'), 'stagione attiva persa: ' + t);
-    assert.ok(t.includes('22Membri attivi'), 'conteggi errati dopo import: ' + t);
+    assert.ok(t.includes('22soci'), 'conteggi errati dopo import: ' + t);
   });
 
   await prova('12b. Un backup non valido viene rifiutato senza toccare i dati', async () => {
@@ -466,7 +478,7 @@ function normalizza(dati) {
     assert.strictEqual(dati.membri.length, 21, 'soci reali eliminati');
     assert.strictEqual(dati.iscrizioni.length, 21, 'iscrizioni reali eliminate');
     const pagate = dati.iscrizioni.filter((i) => i.quotaVersataCent === 24000).length;
-    assert.strictEqual(pagate, 5, 'quote reali alterate');
+    assert.strictEqual(pagate, 4, 'quote alterate dalla pulizia');
     // VIENE ELIMINATO: tutto il resto
     assert.strictEqual(dati.giornate.length, 0, 'giornate demo non eliminate');
     assert.strictEqual(dati.presenze.length, 0, 'presenze demo non eliminate');
@@ -475,9 +487,9 @@ function normalizza(dati) {
 
     // e la Home resta usabile con i dati reali
     const t = d3.window.document.body.textContent.replace(/\s+/g, ' ');
-    assert.ok(t.includes('21Membri attivi'), 'Home incoerente dopo la pulizia: ' + t);
-    assert.ok(t.includes('0Giornate'), 'giornate ancora contate: ' + t);
-    assert.ok(t.includes('0Capi stagione'), 'capi ancora contati: ' + t);
+    assert.ok(t.includes('21soci'), 'Home incoerente dopo la pulizia: ' + t);
+    assert.ok(t.includes('0giornate'), 'giornate ancora contate: ' + t);
+    assert.ok(t.includes('0capi'), 'capi ancora contati: ' + t);
 
     const flag = dati.meta.filter((m) => m.chiave === 'datiDemoPresenti')[0];
     assert.strictEqual(flag.valore, false, 'flag datiDemoPresenti non aggiornato');
@@ -743,20 +755,21 @@ function normalizza(dati) {
   // ---------------------------------------------------------------- Blocco 2: schema
   console.log('\n[Blocco 2 — schema e migrazioni]');
 
-  await prova('G1. Installazione nuova: database creato direttamente a v4', async () => {
+  await prova('G1. Installazione nuova: database creato direttamente a v5', async () => {
     const discoNuovo = H.nuovoDisco();
     const dA = await H.avviaApp(discoNuovo);
     const idb = await dA.window.App.data.db.apri();
-    assert.strictEqual(idb.version, 4, 'versione database errata');
+    assert.strictEqual(idb.version, 5, 'versione database errata');
     ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
-     'abbattimenti', 'controlliSanitari']
+     'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
+     'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne']
       .forEach((n) => assert.ok(idb.objectStoreNames.contains(n), 'store mancante: ' + n));
     const p = idb.transaction(['presenze'], 'readonly').objectStore('presenze');
     assert.ok(p.indexNames.contains('by_giornata_membro'), 'indice unico mancante');
     dA.window.close();
   });
 
-  await prova('G2. Upgrade v1 -> v4 senza perdita dati (tutti i blocchi in un colpo)', async () => {
+  await prova('G2. Upgrade v1 -> v5 senza perdita dati (tutti i blocchi in un colpo)', async () => {
     // Costruisce a mano un database in formato Fase 1 (versione 1, senza i
     // nuovi store), poi lascia che l'app lo apra e lo aggiorni.
     const discoV1 = H.nuovoDisco();
@@ -807,8 +820,9 @@ function normalizza(dati) {
 
     const dB = await H.avviaApp(discoV1);
     const idb = await dB.window.App.data.db.apri();
-    assert.strictEqual(idb.version, 4, 'database non aggiornato a v4');
-    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari'].forEach((n) => {
+    assert.strictEqual(idb.version, 5, 'database non aggiornato a v5');
+    ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari', 'calendariBattuta',
+     'configCarne', 'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'].forEach((n) => {
       assert.ok(idb.objectStoreNames.contains(n), 'store ' + n + ' non creato');
     });
 
@@ -828,7 +842,7 @@ function normalizza(dati) {
     assert.strictEqual(d.controlliSanitari.length, 0);
     const metaV1 = {};
     d.meta.forEach((m) => { metaV1[m.chiave] = m.valore; });
-    assert.strictEqual(metaV1.schemaVersion, 4,
+    assert.strictEqual(metaV1.schemaVersion, 5,
       'meta.schemaVersion non aggiornato dall\'upgrade');
     assert.strictEqual(d.meta.filter((m) => m.chiave === 'schemaVersion').length, 1,
       'chiave schemaVersion duplicata');
@@ -838,7 +852,7 @@ function normalizza(dati) {
     dB.window.close();
   });
 
-  await prova('G3. Import di un backup schema 1 migrato fino a schema 4', async () => {
+  await prova('G3. Import di un backup schema 1 migrato fino a schema 5', async () => {
     const discoMig = H.nuovoDisco();
     const dC = await H.avviaApp(discoMig);
     const A = dC.window.App;
@@ -851,6 +865,8 @@ function normalizza(dati) {
     delete b1.dati.presenze;
     delete b1.dati.abbattimenti;
     delete b1.dati.controlliSanitari;
+    ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => { delete b1.dati[n]; });
 
     assert.deepStrictEqual(A.core.backup.validaBackup(b1).length, 0,
       'backup schema 1 rifiutato: ' + A.core.backup.validaBackup(b1).join(' | '));
@@ -864,9 +880,10 @@ function normalizza(dati) {
     assert.strictEqual(d.abbattimenti.length, 0, 'abbattimenti non inizializzati a lista vuota');
     assert.strictEqual(d.controlliSanitari.length, 0, 'controlli non inizializzati a lista vuota');
 
-    // riesportando si ottiene uno schema 4 completo
+    // riesportando si ottiene uno schema 5 completo
     const riesportato = await A.core.backup.costruisciBackup();
-    assert.strictEqual(riesportato.schemaVersion, 4);
+    assert.strictEqual(riesportato.schemaVersion, 5);
+    assert.ok(Array.isArray(riesportato.dati.lottiCarne));
     assert.ok(Array.isArray(riesportato.dati.giornate));
     assert.ok(Array.isArray(riesportato.dati.abbattimenti));
     assert.ok(Array.isArray(riesportato.dati.controlliSanitari));
@@ -889,7 +906,7 @@ function normalizza(dati) {
   let idGiornata = null;
 
   await prova('G5. Elenco giornate: future prima, poi passate dalla piu\' recente', async () => {
-    await H.vaiA(dom, '#/giornate', 'Nuova giornata');
+    await H.vaiA(dom, '#/giornate', 'Calendario battute');
     const r = await dom.window.App.core.giornata.elenco();
     assert.ok(r.righe.length >= 4, 'giornate demo non presenti: ' + r.righe.length);
     const oggi = dom.window.App.core.giornata.oggiIso();
@@ -905,7 +922,7 @@ function normalizza(dati) {
   });
 
   await prova('G6. Creazione giornata dal form, con capocaccia valido', async () => {
-    H.clic(dom, '[data-vai="#/giornata/nuova"]');
+    await H.vaiA(dom, '#/giornata/nuova');
     await H.attesa(dom, () => H.$(dom, '#g-data'), 'form nuova giornata');
     assert.strictEqual(H.$(dom, '#g-orario').value, '06:30', 'orario non precompilato');
     assert.strictEqual(H.$(dom, '#g-zona').value, '', 'zona precompilata per errore');
@@ -1360,9 +1377,12 @@ function normalizza(dati) {
     assert.ok(d.giornate.some((g) => g.capocacciaMembroId), 'nessuna giornata con capocaccia');
     assert.ok(d.giornate.some((g) => !g.capocacciaMembroId), 'nessuna giornata senza capocaccia');
 
-    const oggi = dD.window.App.core.giornata.oggiIso();
-    assert.ok(d.giornate.some((g) => g.data > oggi), 'nessuna giornata futura');
-    assert.ok(d.giornate.some((g) => g.data < oggi), 'nessuna giornata passata');
+    // Le date demo sono fisse dentro la stagione 2026/2027 e sul calendario
+    // CA VCO1: non si spostano col passare del tempo.
+    const date = d.giornate.map((g) => g.data).sort();
+    assert.ok(date.every((x) => x >= '2026-10-01' && x <= '2027-01-31'),
+      'giornate demo fuori dalla stagione: ' + date.join(', '));
+    assert.ok(new Set(date).size === date.length, 'due giornate demo nella stessa data');
 
     const statiP = d.presenze.map((p) => p.stato);
     ['PRESENTE', 'ASSENTE', 'LAVORO'].forEach((st) => {
@@ -1650,7 +1670,7 @@ function normalizza(dati) {
   // ---------------------------------------------------------------- 2.1: schemaVersion
   console.log('\n[2.1 — coerenza meta.schemaVersion]');
 
-  await prova('S4. Import di un backup schema 1 aggiorna meta.schemaVersion a 4', async () => {
+  await prova('S4. Import di un backup schema 1 aggiorna meta.schemaVersion a 5', async () => {
     const disco = H.nuovoDisco();
     const d = await H.avviaApp(disco);
     const A = d.window.App;
@@ -1662,22 +1682,24 @@ function normalizza(dati) {
     delete b1.dati.presenze;
     delete b1.dati.abbattimenti;
     delete b1.dati.controlliSanitari;
+    ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => { delete b1.dati[n]; });
     b1.dati.meta.forEach((m) => { if (m.chiave === 'schemaVersion') m.valore = 1; });
 
     await A.core.backup.importaBackup(b1);
     const meta = (await A.data.repo.leggiStore(['meta'])).meta;
     const voci = meta.filter((m) => m.chiave === 'schemaVersion');
     assert.strictEqual(voci.length, 1, 'chiave schemaVersion duplicata');
-    assert.strictEqual(voci[0].valore, 4, 'meta.schemaVersion non migrato');
+    assert.strictEqual(voci[0].valore, 5, 'meta.schemaVersion non migrato');
     assert.strictEqual(voci[0].valore, A.versione.SCHEMA_VERSION,
       'meta.schemaVersion non coincide con quella dell\'app');
 
     // e la riesportazione resta coerente
     const riesportato = await A.core.backup.costruisciBackup();
-    assert.strictEqual(riesportato.schemaVersion, 4);
+    assert.strictEqual(riesportato.schemaVersion, 5);
     const metaEsportata = riesportato.dati.meta.filter((m) => m.chiave === 'schemaVersion');
     assert.strictEqual(metaEsportata.length, 1);
-    assert.strictEqual(metaEsportata[0].valore, 4, 'riesportazione incoerente');
+    assert.strictEqual(metaEsportata[0].valore, 5, 'riesportazione incoerente');
     d.window.close();
   });
 
@@ -1692,13 +1714,15 @@ function normalizza(dati) {
     delete b1.dati.presenze;
     delete b1.dati.abbattimenti;
     delete b1.dati.controlliSanitari;
+    ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => { delete b1.dati[n]; });
     b1.dati.meta = b1.dati.meta.filter((m) => m.chiave !== 'schemaVersion');
 
     await A.core.backup.importaBackup(b1);
     const meta = (await A.data.repo.leggiStore(['meta'])).meta;
     const voci = meta.filter((m) => m.chiave === 'schemaVersion');
     assert.strictEqual(voci.length, 1, 'voce non inserita o duplicata');
-    assert.strictEqual(voci[0].valore, 4);
+    assert.strictEqual(voci[0].valore, 5);
     d.window.close();
   });
 
@@ -1828,7 +1852,7 @@ function normalizza(dati) {
   // ---------------------------------------------------------------- Blocco 3: schema
   console.log('\n[Blocco 3 — schema e migrazioni]');
 
-  await prova('A1. Upgrade v2 -> v4: solo i nuovi store, nessun dato perso', async () => {
+  await prova('A1. Upgrade v2 -> v5: solo i nuovi store, nessun dato perso', async () => {
     // database in formato Blocco 2 (versione 2, senza abbattimenti)
     const discoV2 = H.nuovoDisco();
     await new Promise((resolve, reject) => {
@@ -1888,9 +1912,11 @@ function normalizza(dati) {
 
     const dV = await H.avviaApp(discoV2);
     const idb = await dV.window.App.data.db.apri();
-    assert.strictEqual(idb.version, 4, 'database non aggiornato a v4');
-    assert.ok(idb.objectStoreNames.contains('abbattimenti'), 'store abbattimenti non creato');
-    assert.ok(idb.objectStoreNames.contains('controlliSanitari'), 'store controlli non creato');
+    assert.strictEqual(idb.version, 5, 'database non aggiornato a v5');
+    ['abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
+     'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'].forEach((n) => {
+      assert.ok(idb.objectStoreNames.contains(n), 'store ' + n + ' non creato');
+    });
     const store = idb.transaction(['abbattimenti'], 'readonly').objectStore('abbattimenti');
     assert.ok(store.indexNames.contains('by_stagione_codice'), 'indice codice mancante');
 
@@ -1905,13 +1931,13 @@ function normalizza(dati) {
     assert.strictEqual(d.controlliSanitari.length, 0);
     const meta = {};
     d.meta.forEach((m) => { meta[m.chiave] = m.valore; });
-    assert.strictEqual(meta.schemaVersion, 4, 'meta.schemaVersion non aggiornato a 4');
+    assert.strictEqual(meta.schemaVersion, 5, 'meta.schemaVersion non aggiornato a 5');
     assert.strictEqual(d.meta.filter((m) => m.chiave === 'schemaVersion').length, 1,
       'chiave schemaVersion duplicata');
     dV.window.close();
   });
 
-  await prova('A2. Import di un backup schema 2 migrato fino a schema 4', async () => {
+  await prova('A2. Import di un backup schema 2 migrato fino a schema 5', async () => {
     const disco = H.nuovoDisco();
     const d = await H.avviaApp(disco);
     const A = d.window.App;
@@ -1921,6 +1947,8 @@ function normalizza(dati) {
     b2.schemaVersion = 2;
     delete b2.dati.abbattimenti;
     delete b2.dati.controlliSanitari;
+    ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => { delete b2.dati[n]; });
     b2.dati.meta.forEach((m) => { if (m.chiave === 'schemaVersion') m.valore = 2; });
 
     assert.strictEqual(A.core.backup.validaBackup(b2).length, 0,
@@ -1934,7 +1962,7 @@ function normalizza(dati) {
     assert.ok(dati.giornate.length > 0, 'giornate perse nella migrazione');
     const voci = dati.meta.filter((m) => m.chiave === 'schemaVersion');
     assert.strictEqual(voci.length, 1);
-    assert.strictEqual(voci[0].valore, 4, 'meta.schemaVersion non portata a 4');
+    assert.strictEqual(voci[0].valore, 5, 'meta.schemaVersion non portata a 5');
     assert.strictEqual(voci[0].valore, A.versione.SCHEMA_VERSION);
     d.window.close();
   });
@@ -2254,8 +2282,8 @@ function normalizza(dati) {
     assert.strictEqual(perG.tutti.length, 2, 'il capo annullato e\' sparito dall\'elenco');
 
     // la Home mostra il conteggio derivato
-    await H.vaiA(c.dom, '#/home', 'Capi stagione');
-    assert.ok(c.dom.window.document.body.textContent.includes('1Capi stagione'),
+    await H.vaiA(c.dom, '#/home', 'Amministrazione');
+    assert.ok(c.dom.window.document.body.textContent.includes('1capi'),
       'conteggio Home errato: ' +
       c.dom.window.document.body.textContent.replace(/\s+/g, ' ').slice(0, 300));
 
@@ -2280,7 +2308,7 @@ function normalizza(dati) {
     const testo = c.dom.window.document.body.textContent;
     assert.ok(testo.includes(capo.codiceCapo), 'codice non elencato nella giornata');
     assert.ok(testo.includes('71,5 kg'), 'peso non mostrato');
-    assert.ok(testo.includes('1 capo valido'), 'conteggio capi non mostrato');
+    assert.ok(testo.includes('1 capo'), 'conteggio capi non mostrato');
     assert.ok(H.$(c.dom, '[data-vai="#/capo/nuovo/' + g.id + '"]'),
       'pulsante di registrazione mancante');
 
@@ -2464,7 +2492,7 @@ function normalizza(dati) {
   await prova('N19. Export/import completo con abbattimenti', async () => {
     const A = dom.window.App;
     const backup = await A.core.backup.costruisciBackup();
-    assert.strictEqual(backup.schemaVersion, 4);
+    assert.strictEqual(backup.schemaVersion, 5);
     assert.ok(backup.dati.abbattimenti.length > 0, 'nessun capo da esportare');
 
     await A.data.repo.scrivi(A.data.schema.nomiStore, (t) => {
@@ -2768,7 +2796,7 @@ function normalizza(dati) {
   // ---------------------------------------------------------------- Blocco 4: schema
   console.log('\n[Blocco 4 — schema e migrazioni]');
 
-  await prova('T5. Upgrade v3 -> v4: solo il nuovo store, nessun dato perso', async () => {
+  await prova('T5. Upgrade v3 -> v5: i nuovi store, nessun dato perso', async () => {
     const discoV3 = H.nuovoDisco();
     await new Promise((resolve, reject) => {
       const req = discoV3.open('adrenalinaDB', 3);
@@ -2837,8 +2865,9 @@ function normalizza(dati) {
 
     const dV = await H.avviaApp(discoV3);
     const idb = await dV.window.App.data.db.apri();
-    assert.strictEqual(idb.version, 4, 'database non aggiornato a v4');
+    assert.strictEqual(idb.version, 5, 'database non aggiornato a v5');
     assert.ok(idb.objectStoreNames.contains('controlliSanitari'), 'store non creato');
+    assert.ok(idb.objectStoreNames.contains('lottiCarne'), 'store lottiCarne non creato');
     const store = idb.transaction(['controlliSanitari'], 'readonly')
       .objectStore('controlliSanitari');
     assert.ok(store.indexNames.contains('by_abbattimento'), 'indice mancante');
@@ -2852,13 +2881,13 @@ function normalizza(dati) {
     assert.strictEqual(d.controlliSanitari.length, 0);
     const meta = {};
     d.meta.forEach((m) => { meta[m.chiave] = m.valore; });
-    assert.strictEqual(meta.schemaVersion, 4, 'meta.schemaVersion non aggiornato a 4');
+    assert.strictEqual(meta.schemaVersion, 5, 'meta.schemaVersion non aggiornato a 5');
     assert.strictEqual(d.meta.filter((m) => m.chiave === 'schemaVersion').length, 1,
       'chiave schemaVersion duplicata');
     dV.window.close();
   });
 
-  await prova('T6. Import di un backup schema 3 migrato a schema 4', async () => {
+  await prova('T6. Import di un backup schema 3 migrato fino a schema 5', async () => {
     const disco = H.nuovoDisco();
     const d = await H.avviaApp(disco);
     const A = d.window.App;
@@ -2867,6 +2896,8 @@ function normalizza(dati) {
     const b3 = JSON.parse(JSON.stringify(b4));
     b3.schemaVersion = 3;
     delete b3.dati.controlliSanitari;
+    ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => { delete b3.dati[n]; });
     b3.dati.meta.forEach((m) => { if (m.chiave === 'schemaVersion') m.valore = 3; });
 
     assert.strictEqual(A.core.backup.validaBackup(b3).length, 0,
@@ -2878,7 +2909,7 @@ function normalizza(dati) {
     assert.ok(dati.abbattimenti.length > 0, 'capi persi nella migrazione');
     const voci = dati.meta.filter((m) => m.chiave === 'schemaVersion');
     assert.strictEqual(voci.length, 1);
-    assert.strictEqual(voci[0].valore, 4, 'meta.schemaVersion non portata a 4');
+    assert.strictEqual(voci[0].valore, 5, 'meta.schemaVersion non portata a 5');
     assert.strictEqual(voci[0].valore, A.versione.SCHEMA_VERSION);
     d.window.close();
   });
@@ -3102,15 +3133,16 @@ function normalizza(dati) {
     await c.A.core.sanitario.salva(c.capo.id, { statoTrichinella: 'POSITIVO',
       dataPrelievo: null, dataEsito: null, riferimentoCampione: null, note: '' });
 
-    await H.vaiA(c.dom, '#/abbattimenti', 'Registro');
-    const testo = c.dom.window.document.body.textContent;
-    assert.ok(testo.includes('Trichinella: Positivo'), 'stato positivo non in elenco');
-    assert.ok(testo.includes('Trichinella: In attesa'), 'stato in attesa non in elenco');
-    assert.ok(testo.includes('Trichinella: Negativo / Conforme'), 'stato negativo non in elenco');
-    assert.ok(testo.includes('Trichinella: Non registrato'), 'capi senza controllo non segnalati');
+    await H.vaiA(c.dom, '#/abbattimenti', 'Abbattimenti');
+    const testo = c.dom.window.document.body.textContent.replace(/\s+/g, ' ');
+    assert.ok(testo.includes('Trichinella · \u26A0 Positivo'),
+      'stato positivo non in elenco: ' + testo);
+    assert.ok(testo.includes('Trichinella · In attesa'), 'stato in attesa non in elenco');
+    assert.ok(testo.includes('Trichinella · Negativo / Conforme'), 'stato negativo non in elenco');
+    assert.ok(testo.includes('Trichinella · Non registrato'), 'capi senza controllo non segnalati');
 
     // il positivo non si affida al solo colore: c'e' un simbolo nel testo
-    const riga = H.$$(c.dom, '.riga-sanitaria.positivo')[0];
+    const riga = H.$$(c.dom, '.esito.positivo')[0];
     assert.ok(riga, 'nessuna riga marcata positiva');
     assert.ok(riga.textContent.indexOf('\u26A0') !== -1,
       'lo stato positivo e\' distinguibile solo dal colore');
@@ -3220,7 +3252,7 @@ function normalizza(dati) {
   await prova('W14. Export/import completo con i controlli sanitari', async () => {
     const A = dom.window.App;
     const backup = await A.core.backup.costruisciBackup();
-    assert.strictEqual(backup.schemaVersion, 4);
+    assert.strictEqual(backup.schemaVersion, 5);
     assert.ok(backup.dati.controlliSanitari.length > 0, 'nessun controllo da esportare');
 
     await A.data.repo.scrivi(A.data.schema.nomiStore, (t) => {
@@ -3397,55 +3429,61 @@ function normalizza(dati) {
     c.dom.window.close();
   });
 
-  await prova('Y4. 21 iscrizioni reali con le quote fornite', async () => {
+  await prova('Y4. 21 iscrizioni con quote dimostrative sui tre stati', async () => {
     const c = await appReale();
     assert.strictEqual(c.dati.iscrizioni.length, 21);
     c.dati.iscrizioni.forEach((i) => {
       assert.strictEqual(i.quotaAnnualePrevistaCent, 24000, 'quota prevista errata');
     });
-    const pagate = ['Pier Nolli', 'Luca Malcotti', 'Roberto Dido',
-      'Cristian Cerlini', 'Adriano De Giorgis'];
-    const perMembro = {};
-    c.dati.iscrizioni.forEach((i) => { perMembro[i.membroId] = i; });
-    pagate.forEach((n) => {
-      assert.strictEqual(perMembro[c.perNome[n].id].quotaVersataCent, 24000,
-        n + ' dovrebbe risultare in regola');
-    });
-    NOMI_REALI.filter((n) => pagate.indexOf(n) === -1).forEach((n) => {
-      assert.strictEqual(perMembro[c.perNome[n].id].quotaVersataCent, 0,
-        n + ': quota versata inventata');
+    // Le quote della demo pubblica servono solo a mostrare i tre stati
+    // dell'interfaccia: non rappresentano pagamenti reali.
+    const Q = c.A.core.quote;
+    const conta = { PAGATA: 0, PARZIALE: 0, NON_PAGATA: 0 };
+    c.dati.iscrizioni.forEach((i) => { conta[Q.statoIscrizione(i)]++; });
+    assert.strictEqual(conta.PAGATA, 4, 'pagate: ' + conta.PAGATA);
+    assert.strictEqual(conta.PARZIALE, 2, 'parziali: ' + conta.PARZIALE);
+    assert.strictEqual(conta.NON_PAGATA, 15, 'non pagate: ' + conta.NON_PAGATA);
+    c.dati.iscrizioni.forEach((i) => {
+      assert.ok([0, 12000, 24000].indexOf(i.quotaVersataCent) !== -1,
+        'importo fuori dallo schema dimostrativo: ' + i.quotaVersataCent);
     });
     c.dom.window.close();
   });
 
-  await prova('Y5. I dati non forniti restano vuoti: nulla e\' stato inventato', async () => {
+  await prova('Y5. Nessun dato personale nei dati iniziali della demo pubblica', async () => {
     const c = await appReale();
-    // date di nascita: solo le due note
     const conNascita = c.dati.membri.filter((m) => m.dataNascita);
-    assert.strictEqual(conNascita.length, 2,
-      'date di nascita presenti: ' + conNascita.map((m) => m.cognome).join(', '));
-    assert.strictEqual(c.perNome['Stefano Bianchi'].dataNascita, '1975-05-27');
-    assert.strictEqual(c.perNome['Luca Malcotti'].dataNascita, '1975-01-07');
+    assert.strictEqual(conNascita.length, 0,
+      'date di nascita pubblicate: ' + conNascita.map((m) => m.cognome).join(', '));
 
-    // telefoni: solo i sei noti
     const conTelefono = c.dati.membri.filter((m) => m.telefono);
-    assert.strictEqual(conTelefono.length, 6,
-      'telefoni presenti: ' + conTelefono.map((m) => m.cognome).join(', '));
-    assert.strictEqual(c.perNome['Stefano Bianchi'].telefono, '347-6986663');
-    assert.strictEqual(c.perNome['Cristian Cerlini'].telefono, '333-7772356');
+    assert.strictEqual(conTelefono.length, 0,
+      'telefoni pubblicati: ' + conTelefono.map((m) => m.cognome).join(', '));
 
-    // porto d'armi: solo le sei scadenze note
     const conPorto = c.dati.membri.filter((m) => m.scadenzaPortoArmi);
-    assert.strictEqual(conPorto.length, 6,
-      'scadenze presenti: ' + conPorto.map((m) => m.cognome).join(', '));
-    assert.strictEqual(c.perNome['Pier Nolli'].scadenzaPortoArmi, '2026-08-20');
-    assert.strictEqual(c.perNome['Cristian Cerlini'].scadenzaPortoArmi, '2029-06-26');
+    assert.strictEqual(conPorto.length, 0,
+      'scadenze porto d\'armi pubblicate: ' + conPorto.map((m) => m.cognome).join(', '));
 
-    // per tutti gli altri i campi sono null, non stringhe vuote inventate
-    ['Antonio Rinaldi', 'Renato Borri', 'Alessandro Zanetta'].forEach((n) => {
-      assert.strictEqual(c.perNome[n].dataNascita, null, n + ': nascita inventata');
-      assert.strictEqual(c.perNome[n].telefono, null, n + ': telefono inventato');
-      assert.strictEqual(c.perNome[n].scadenzaPortoArmi, null, n + ': porto inventato');
+    const conNote = c.dati.membri.filter((m) => m.note);
+    assert.strictEqual(conNote.length, 0,
+      'note personali pubblicate: ' + conNote.map((m) => m.cognome).join(', '));
+
+    // I campi restano nel modello: sono null, non assenti.
+    c.dati.membri.forEach((m) => {
+      ['dataNascita', 'telefono', 'scadenzaPortoArmi', 'note'].forEach((campo) => {
+        assert.ok(campo in m, 'campo rimosso dal modello: ' + campo);
+      });
+      assert.strictEqual(m.dataNascita, null);
+      assert.strictEqual(m.telefono, null);
+      assert.strictEqual(m.scadenzaPortoArmi, null);
+    });
+
+    // e restano compilabili dall'app: il form li espone ancora
+    await H.vaiA(c.dom, '#/socio/' + c.perNome['Alessandro Zanetta'].id + '/modifica',
+      'Modifica socio');
+    ['#f-nascita', '#f-telefono', '#f-porto', '#f-note'].forEach((sel) => {
+      assert.ok(H.$(c.dom, sel), 'campo sparito dal form: ' + sel);
+      assert.strictEqual(H.$(c.dom, sel).value, '', 'campo precompilato: ' + sel);
     });
     c.dom.window.close();
   });
@@ -3484,6 +3522,1046 @@ function normalizza(dati) {
     const t = c.dom.window.document.body.textContent;
     NOMI_REALI.forEach((n) => assert.ok(t.includes(n), 'nome non in elenco: ' + n));
     assert.ok(t.includes('Caposquadra / Canaro'), 'ruoli doppi non mostrati');
+    c.dom.window.close();
+  });
+
+  // ---------------------------------------------------------------- 4.8: partecipanti
+  console.log('\n[4.8 — partecipanti nella scheda giornata]');
+
+  async function appGiornata() {
+    const disco = H.nuovoDisco();
+    const d = await H.avviaApp(disco);
+    const A = d.window.App;
+    const g = (await A.data.giornate.tutte())
+      .filter((x) => x.stato === 'PROGRAMMATA' && x.zona === 'Fosso Grande')[0];
+    return { dom: d, A, giornata: g };
+  }
+
+  await prova('Z1. La scheda giornata elenca subito i partecipanti, senza schermate intermedie',
+    async () => {
+      const c = await appGiornata();
+      await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Partecipanti alla battuta');
+      const righe = H.$$(c.dom, '.riga-partecipante');
+      assert.strictEqual(righe.length, 21,
+        'attese 21 righe partecipante, trovate ' + righe.length);
+      assert.ok(H.$(c.dom, '#conta-partecipanti'), 'conteggio partecipanti mancante');
+      // niente piu' pulsante che porta a una schermata separata
+      assert.strictEqual(H.$(c.dom, '[data-vai="#/giornata/' + c.giornata.id + '/presenze"]'),
+        null, 'e\' rimasto un pulsante "Gestisci presenze"');
+      const t = c.dom.window.document.body.textContent;
+      assert.ok(t.indexOf('Gestisci presenze') === -1, 'testo "Gestisci presenze" ancora presente');
+      assert.ok(t.includes('ripartizione della carne'), 'manca la nota sui partecipanti');
+      c.dom.window.close();
+    });
+
+  await prova('Z2. Un tocco porta a PRESENTE, il secondo riporta a NON_SEGNATO', async () => {
+    const c = await appGiornata();
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Partecipanti alla battuta');
+    const riga = H.$$(c.dom, '.riga-partecipante')[0];
+    const membroId = riga.getAttribute('data-membro');
+    assert.strictEqual(H.$(c.dom, '#conta-partecipanti').textContent, '0');
+
+    H.clic(c.dom, riga.querySelector('.tocco'));
+    await H.attesa(c.dom, () => riga.getAttribute('aria-busy') === 'false', 'salvataggio');
+    assert.ok(riga.className.indexOf('presente') !== -1, 'riga non marcata come partecipante');
+    assert.strictEqual(riga.querySelector('.tocco').getAttribute('aria-pressed'), 'true');
+    assert.strictEqual(H.$(c.dom, '#conta-partecipanti').textContent, '1',
+      'conteggio non aggiornato');
+    let p = await c.A.data.presenze.perGiornataEMembro(c.giornata.id, membroId);
+    assert.ok(p && p.stato === 'PRESENTE', 'stato non salvato');
+
+    H.clic(c.dom, riga.querySelector('.tocco'));
+    await H.attesa(c.dom, () => riga.getAttribute('aria-busy') === 'false', 'secondo salvataggio');
+    assert.ok(riga.className.indexOf('nonsegnato') !== -1, 'riga non tornata a non segnato');
+    assert.strictEqual(H.$(c.dom, '#conta-partecipanti').textContent, '0');
+    p = await c.A.data.presenze.perGiornataEMembro(c.giornata.id, membroId);
+    assert.strictEqual(p, null, 'il record doveva essere rimosso (regola NON_SEGNATO)');
+    c.dom.window.close();
+  });
+
+  await prova('Z3. Assente e Lavoro restano impostabili dal menu secondario', async () => {
+    const c = await appGiornata();
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Partecipanti alla battuta');
+    const riga = H.$$(c.dom, '.riga-partecipante')[1];
+    const membroId = riga.getAttribute('data-membro');
+
+    // il menu e' chiuso finche' non lo si apre: la vista resta compatta
+    assert.strictEqual(riga.querySelector('.altri-stati').hidden, true,
+      'menu secondario aperto di default');
+    H.clic(c.dom, riga.querySelector('.altro'));
+    await H.pausa(c.dom, 30);
+    assert.strictEqual(riga.querySelector('.altri-stati').hidden, false, 'menu non aperto');
+
+    H.clic(c.dom, riga.querySelector('[data-stato="ASSENTE"]'));
+    await H.attesa(c.dom, () => riga.getAttribute('aria-busy') === 'false', 'salvataggio assente');
+    let p = await c.A.data.presenze.perGiornataEMembro(c.giornata.id, membroId);
+    assert.strictEqual(p.stato, 'ASSENTE');
+    assert.ok(riga.className.indexOf('assente') !== -1, 'riga non marcata assente');
+    assert.strictEqual(H.$(c.dom, '#conta-partecipanti').textContent, '0',
+      'un assente non deve contare fra i partecipanti');
+
+    H.clic(c.dom, riga.querySelector('.altro'));
+    await H.pausa(c.dom, 30);
+    H.clic(c.dom, riga.querySelector('[data-stato="LAVORO"]'));
+    await H.attesa(c.dom, () => riga.getAttribute('aria-busy') === 'false', 'salvataggio lavoro');
+    p = await c.A.data.presenze.perGiornataEMembro(c.giornata.id, membroId);
+    assert.strictEqual(p.stato, 'LAVORO');
+
+    H.clic(c.dom, riga.querySelector('.altro'));
+    await H.pausa(c.dom, 30);
+    H.clic(c.dom, riga.querySelector('[data-stato="NON_SEGNATO"]'));
+    await H.attesa(c.dom, () => riga.getAttribute('aria-busy') === 'false', 'ritorno a non segnato');
+    p = await c.A.data.presenze.perGiornataEMembro(c.giornata.id, membroId);
+    assert.strictEqual(p, null, 'record non rimosso');
+    c.dom.window.close();
+  });
+
+  await prova('Z4. Il conteggio segue i tocchi e coincide con i dati', async () => {
+    const c = await appGiornata();
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Partecipanti alla battuta');
+    const righe = H.$$(c.dom, '.riga-partecipante');
+    for (let i = 0; i < 5; i++) {
+      H.clic(c.dom, righe[i].querySelector('.tocco'));
+      await H.attesa(c.dom, () => righe[i].getAttribute('aria-busy') === 'false', 'salvataggio');
+    }
+    assert.strictEqual(H.$(c.dom, '#conta-partecipanti').textContent, '5');
+    const dati = await c.A.core.presenza.perGiornata(c.giornata.id);
+    assert.strictEqual(dati.riepilogo.presenti, 5, 'dati non coerenti col conteggio');
+    // e il totale mostrato e' quello degli iscritti alla stagione
+    assert.ok(c.dom.window.document.body.textContent.includes('/ 21'),
+      'totale partecipanti non mostrato');
+    c.dom.window.close();
+  });
+
+  await prova('Z5. Lo storico di un\'altra giornata resta invariato', async () => {
+    const c = await appGiornata();
+    const altre = (await c.A.data.giornate.tutte())
+      .filter((x) => x.id !== c.giornata.id);
+    const prima = JSON.stringify((await c.A.data.presenze.tutte())
+      .filter((p) => p.giornataId !== c.giornata.id)
+      .sort((a, b) => a.id.localeCompare(b.id)));
+
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Partecipanti alla battuta');
+    const righe = H.$$(c.dom, '.riga-partecipante');
+    H.clic(c.dom, righe[0].querySelector('.tocco'));
+    await H.attesa(c.dom, () => righe[0].getAttribute('aria-busy') === 'false', 'salvataggio');
+
+    const dopo = JSON.stringify((await c.A.data.presenze.tutte())
+      .filter((p) => p.giornataId !== c.giornata.id)
+      .sort((a, b) => a.id.localeCompare(b.id)));
+    assert.strictEqual(dopo, prima, 'storico di altre giornate alterato');
+    assert.ok(altre.length > 0);
+    c.dom.window.close();
+  });
+
+  await prova('Z6. Nessuna modifica al modello dati', async () => {
+    const c = await appGiornata();
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Partecipanti alla battuta');
+    const riga = H.$$(c.dom, '.riga-partecipante')[0];
+    H.clic(c.dom, riga.querySelector('.tocco'));
+    await H.attesa(c.dom, () => riga.getAttribute('aria-busy') === 'false', 'salvataggio');
+
+    const p = (await c.A.data.presenze.tutte())
+      .filter((x) => x.giornataId === c.giornata.id)[0];
+    assert.deepStrictEqual(Object.keys(p).sort().join(','),
+      ['id', 'giornataId', 'membroId', 'stato', 'note', 'demo', 'creatoIl', 'aggiornatoIl']
+        .sort().join(','), 'campi del record presenza cambiati');
+    // lo store si chiama ancora "presenze": nessuna migrazione
+    assert.ok(c.A.data.schema.nomiStore.indexOf('presenze') !== -1, 'store rinominato');
+    assert.strictEqual(c.A.data.schema.dbVersion, 5, 'versione del database cambiata');
+    assert.strictEqual(c.A.versione.SCHEMA_VERSION, 5, 'schema di backup cambiato');
+    c.dom.window.close();
+  });
+
+  // ---------------------------------------------------------------- 4.8: Home
+  console.log('\n[4.8 — Home semplificata]');
+
+  await prova('Z7. La Home ha quattro porte principali e una sezione Amministrazione',
+    async () => {
+      const c = await appGiornata();
+      await H.vaiA(c.dom, '#/home', 'Amministrazione');
+      const t = c.dom.window.document.body.textContent;
+
+      // Le porte principali sono nella barra bassa, sempre nello stesso posto.
+      const tab = H.$$(c.dom, '#barra-bassa button').map((b) => b.textContent.trim());
+      assert.strictEqual(tab.join(','), 'Home,Giornate,Capi,Squadra',
+        'barra bassa inattesa: ' + tab.join(','));
+
+      assert.ok(t.includes('Amministrazione'), 'sezione Amministrazione mancante');
+      assert.ok(t.includes('Prossimamente'), 'Cassa non segnalata come non disponibile');
+      assert.ok(t.includes('Cassa'), 'voce Cassa mancante');
+
+      // Cassa e' presente ma non cliccabile
+      const cassa = H.$$(c.dom, '.voce').filter((v) => v.textContent.includes('Cassa'))[0];
+      assert.ok(cassa, 'voce Cassa non trovata');
+      assert.strictEqual(cassa.disabled, true, 'Cassa risulta cliccabile');
+
+      // Stagioni e Backup restano raggiungibili, ma da Amministrazione
+      assert.ok(H.$(c.dom, '[data-vai="#/stagioni"]'), 'Stagioni non raggiungibile');
+      assert.ok(H.$(c.dom, '[data-vai="#/backup"]'), 'Backup non raggiungibile');
+      c.dom.window.close();
+    });
+
+  await prova('Z8. Da Amministrazione si arriva davvero a Stagioni e a Backup', async () => {
+    const c = await appGiornata();
+    await H.vaiA(c.dom, '#/home', 'Amministrazione');
+    H.clic(c.dom, '[data-vai="#/stagioni"]');
+    await H.attesa(c.dom, () => c.dom.window.location.hash === '#/stagioni' &&
+      c.dom.window.document.body.textContent.includes('Stagione attiva'), 'apertura Stagioni');
+
+    await H.vaiA(c.dom, '#/home', 'Amministrazione');
+    H.clic(c.dom, '[data-vai="#/backup"]');
+    await H.attesa(c.dom, () => c.dom.window.location.hash === '#/backup' &&
+      c.dom.window.document.body.textContent.includes('Esporta dati'), 'apertura Backup');
+    c.dom.window.close();
+  });
+
+  await prova('Z9. La parola "Presenze" non compare piu\' come termine di interfaccia',
+    async () => {
+      const c = await appGiornata();
+      const schermate = ['#/home', '#/giornate', '#/giornata/' + c.giornata.id,
+        '#/giornata/' + c.giornata.id + '/presenze'];
+      for (const hash of schermate) {
+        await H.vaiA(c.dom, hash);
+        await H.pausa(c.dom, 60);
+        const t = c.dom.window.document.body.textContent;
+        assert.strictEqual(t.indexOf('Presenze'), -1,
+          'trovato "Presenze" in ' + hash + ': ' + t.slice(0, 200));
+      }
+      // la scheda socio continua invece a mostrare il conteggio "Presenze: X",
+      // che e' un dato storico del socio e non una schermata
+      c.dom.window.close();
+    });
+
+  // ---------------------------------------------------------------- 4.9: navigazione
+  console.log('\n[4.9 — barra bassa e struttura]');
+
+  await prova('W1. La barra bassa porta alle quattro sezioni e segna quella attiva', async () => {
+    const c = await appGiornata();
+    const barra = H.$(c.dom, '#barra-bassa');
+    assert.ok(barra, 'barra bassa assente');
+    const bottoni = H.$$(c.dom, '#barra-bassa button');
+    assert.strictEqual(bottoni.length, 4);
+
+    const rotte = [['giornate', '#/giornate'], ['capi', '#/abbattimenti'],
+      ['squadra', '#/soci'], ['home', '#/home']];
+    for (const [tab, hash] of rotte) {
+      H.clic(c.dom, H.$(c.dom, '#barra-bassa [data-tab="' + tab + '"]'));
+      await H.attesa(c.dom, () => c.dom.window.location.hash === hash, 'apertura ' + hash);
+      await H.pausa(c.dom, 60);
+      const attivo = H.$(c.dom, '#barra-bassa button.attivo');
+      assert.ok(attivo, 'nessuna scheda evidenziata su ' + hash);
+      assert.strictEqual(attivo.getAttribute('data-tab'), tab,
+        'scheda sbagliata evidenziata su ' + hash);
+      assert.strictEqual(attivo.getAttribute('aria-current'), 'page');
+    }
+    c.dom.window.close();
+  });
+
+  await prova('W2. Le viste di dettaglio restano nella scheda giusta', async () => {
+    const c = await appGiornata();
+    const casi = [
+      ['#/giornata/' + c.giornata.id, 'giornate'],
+      ['#/abbattimenti', 'capi'],
+      ['#/stagioni', 'home'],
+      ['#/backup', 'home']
+    ];
+    for (const [hash, tab] of casi) {
+      await H.vaiA(c.dom, hash);
+      await H.attesa(c.dom, () => {
+        const a = H.$(c.dom, '#barra-bassa button.attivo');
+        return a && a.getAttribute('data-tab') === tab;
+      }, 'scheda ' + tab + ' per ' + hash);
+    }
+    c.dom.window.close();
+  });
+
+  await prova('W3. Il contenuto lascia spazio alla barra bassa', async () => {
+    const fs = require('fs');
+    const css = fs.readFileSync(require('path').join(H.RADICE, 'layout.css'), 'utf8');
+    const cont = css.slice(css.indexOf('.contenuto {'));
+    const regola = cont.slice(0, cont.indexOf('}'));
+    assert.ok(regola.includes('var(--barra-bassa)'),
+      'il contenuto non tiene conto dell\'altezza della barra');
+    assert.ok(regola.includes('env(safe-area-inset-bottom'),
+      'zona sicura inferiore non gestita');
+    const barra = css.slice(css.indexOf('.barra-bassa {'));
+    assert.ok(barra.slice(0, barra.indexOf('}')).includes('env(safe-area-inset-bottom'),
+      'la barra non gestisce la zona sicura');
+    assert.ok(css.includes('.barra-bassa button.attivo::before'),
+      'la scheda attiva si distingue solo dal colore');
+  });
+
+  await prova('W4. Nessuna regressione su abbattimenti e controllo sanitario', async () => {
+    const c = await appGiornata();
+    const A = c.A;
+    const capi = await A.data.abbattimenti.tutti();
+    const capo = capi.filter((x) => !x.annullato)[0];
+
+    await H.vaiA(c.dom, '#/abbattimenti', 'Nuovo abbattimento');
+    let t = c.dom.window.document.body.textContent.replace(/\s+/g, ' ');
+    assert.ok(t.includes(capo.codiceCapo), 'codice non in elenco');
+    assert.ok(t.includes('Trichinella'), 'stato sanitario non in elenco');
+
+    await H.vaiA(c.dom, '#/capo/' + capo.id, 'Controllo sanitario');
+    t = c.dom.window.document.body.textContent;
+    assert.ok(t.includes(capo.codiceCapo));
+    assert.ok(t.includes('Tiratore'), 'tiratore non mostrato');
+    assert.ok(t.includes('Annulla abbattimento'), 'azione di annullamento sparita');
+
+    await H.vaiA(c.dom, '#/capo/' + capo.id + '/sanitario', 'Trichinella');
+    assert.ok(H.$(c.dom, '#s-stato'), 'form sanitario non raggiungibile');
+    c.dom.window.close();
+  });
+
+  await prova('W5. Squadra resta una rubrica: nome, ruolo, stato quota', async () => {
+    const c = await appGiornata();
+    await H.vaiA(c.dom, '#/soci', 'Aggiungi socio');
+    const voci = H.$$(c.dom, '.voce-socio');
+    assert.strictEqual(voci.length, 21, 'soci in elenco: ' + voci.length);
+    const t = c.dom.window.document.body.textContent;
+    assert.ok(t.includes('Pier Nolli'));
+    assert.ok(t.includes('Caposquadra / Canaro'));
+    assert.ok(t.includes('Pagata') && t.includes('Da pagare') && t.includes('Parziale'),
+      'stati quota non mostrati');
+    // "Da pagare" non usa il rosso forte
+    const daPagare = H.$$(c.dom, '.quota.attesa');
+    assert.ok(daPagare.length > 0, 'nessuno stato "da pagare"');
+    assert.strictEqual(H.$$(c.dom, '.quota.pericolo').length, 0,
+      '"Da pagare" trattato come errore');
+    c.dom.window.close();
+  });
+
+  await prova('W6. Modello dati invariato dopo il redesign', async () => {
+    const c = await appGiornata();
+    const A = c.A;
+    assert.strictEqual(A.data.schema.dbVersion, 5, 'versione database cambiata');
+    assert.strictEqual(A.versione.SCHEMA_VERSION, 5, 'schema di backup cambiato');
+    assert.strictEqual(A.data.schema.nomiStore.slice().sort().join(','),
+      ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
+       'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
+       'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'].sort().join(','),
+      'store cambiati');
+    const b = await A.core.backup.costruisciBackup();
+    assert.strictEqual(A.core.backup.validaBackup(b).length, 0, 'backup non piu\' valido');
+    c.dom.window.close();
+  });
+
+  // ---------------------------------------------------------------- Blocco 5: calendario
+  console.log('\n[Blocco 5 — calendario battute]');
+
+  await prova('K1. 53 date per CA VCO1 dal 01/10/2026 al 31/01/2027', async () => {
+    const CB = dom.window.App.core.calendarioBattute;
+    const date = CB.dateDa({
+      dataInizio: '2026-10-01', dataFine: '2027-01-31',
+      giorniSettimana: ['MERCOLEDI', 'SABATO', 'DOMENICA']
+    });
+    assert.strictEqual(date.length, 53, 'date totali: ' + date.length);
+
+    const perMese = {};
+    date.forEach((d) => { const m = d.slice(0, 7); perMese[m] = (perMese[m] || 0) + 1; });
+    assert.strictEqual(perMese['2026-10'], 13, 'ottobre: ' + perMese['2026-10']);
+    assert.strictEqual(perMese['2026-11'], 13, 'novembre: ' + perMese['2026-11']);
+    assert.strictEqual(perMese['2026-12'], 13, 'dicembre: ' + perMese['2026-12']);
+    assert.strictEqual(perMese['2027-01'], 14, 'gennaio: ' + perMese['2027-01']);
+
+    ['2026-10-03', '2026-10-04', '2026-10-07', '2026-10-10', '2026-10-11', '2027-01-31']
+      .forEach((d) => assert.ok(date.indexOf(d) !== -1, 'data mancante: ' + d));
+    ['2026-10-05', '2026-10-06']
+      .forEach((d) => assert.strictEqual(date.indexOf(d), -1, 'data non prevista: ' + d));
+    assert.strictEqual(date[date.length - 1], '2027-01-31', 'ultima data errata');
+    // ordine crescente
+    assert.strictEqual(date.join(','), date.slice().sort().join(','), 'date non ordinate');
+  });
+
+  await prova('K2. Il calendario NON crea record giornata', async () => {
+    const disco = H.nuovoDisco();
+    const d = await H.avviaApp(disco);
+    const A = d.window.App;
+    const ctx = await A.core.squadra.contesto();
+    const prima = (await A.data.giornate.tutte()).length;
+
+    const el = await A.core.calendarioBattute.elenco(ctx.stagioneAttiva.id);
+    assert.strictEqual(el.righe.length, 53, 'righe calendario: ' + el.righe.length);
+    assert.strictEqual((await A.data.giornate.tutte()).length, prima,
+      'il calendario ha creato record giornata');
+
+    // e anche aprendo la schermata non nasce nulla
+    await H.vaiA(d, '#/giornate', 'Calendario battute');
+    assert.strictEqual((await A.data.giornate.tutte()).length, prima,
+      'la schermata calendario ha creato record giornata');
+    const daCompilare = el.righe.filter((r) => r.stato === 'DA_COMPILARE').length;
+    assert.strictEqual(daCompilare, 53 - prima, 'stati calendario incoerenti');
+    d.window.close();
+  });
+
+  await prova('K3. Una data si apre: giornata esistente riaperta, altrimenti form precompilato',
+    async () => {
+      const disco = H.nuovoDisco();
+      const d = await H.avviaApp(disco);
+      const A = d.window.App;
+      const esistente = (await A.data.giornate.tutte())
+        .filter((g) => g.data === '2026-10-18')[0];
+      assert.ok(esistente, 'giornata demo del 18/10 mancante');
+
+      await H.vaiA(d, '#/giornate', 'Calendario battute');
+      // data con giornata: si apre quella
+      H.clic(d, '[data-vai="#/giornata/' + esistente.id + '"]');
+      await H.attesa(d, () => d.window.location.hash === '#/giornata/' + esistente.id,
+        'apertura giornata esistente');
+
+      // data libera: form con la data gia' scritta, nessun record creato
+      const prima = (await A.data.giornate.tutte()).length;
+      await H.vaiA(d, '#/giornata/nuova/2026-11-04');
+      await H.attesa(d, () => H.$(d, '#g-data'), 'form nuova giornata');
+      assert.strictEqual(H.$(d, '#g-data').value, '2026-11-04', 'data non precompilata');
+      assert.strictEqual((await A.data.giornate.tutte()).length, prima,
+        'aprire il form ha gia\' creato la giornata');
+
+      H.scrivi(d, '#g-zona', 'Zona da calendario');
+      H.clic(d, '#btn-salva-giornata');
+      await H.attesa(d, () =>
+        d.window.document.body.textContent.includes('Zona da calendario'), 'giornata creata');
+      const nuova = (await A.data.giornate.tutte()).filter((g) => g.data === '2026-11-04')[0];
+      assert.ok(nuova, 'giornata non creata dal calendario');
+      assert.strictEqual((await A.data.giornate.tutte()).length, prima + 1,
+        'create piu\' giornate del previsto');
+      d.window.close();
+    });
+
+  await prova('K4. Il calendario si configura per stagione, non e\' fisso nel codice', async () => {
+    const disco = H.nuovoDisco();
+    const d = await H.avviaApp(disco);
+    const A = d.window.App;
+    const ctx = await A.core.squadra.contesto();
+
+    const cal = await A.core.calendarioBattute.perStagione(ctx.stagioneAttiva.id);
+    assert.ok(cal, 'calendario della stagione mancante');
+    assert.strictEqual(cal.dataInizio, '2026-10-01');
+    assert.strictEqual(cal.dataFine, '2027-01-31');
+    assert.strictEqual(cal.giorniSettimana.slice().sort().join(','),
+      ['MERCOLEDI', 'SABATO', 'DOMENICA'].sort().join(','));
+
+    // modificabile
+    await A.core.calendarioBattute.salva(ctx.stagioneAttiva.id, {
+      nome: 'Prova', dataInizio: '2026-11-01', dataFine: '2026-11-30',
+      giorniSettimana: ['DOMENICA']
+    });
+    const dopo = await A.core.calendarioBattute.elenco(ctx.stagioneAttiva.id);
+    const domeniche = dopo.righe.filter((r) => !r.fuoriCalendario).length;
+    assert.strictEqual(domeniche, 5, 'domeniche di novembre 2026: ' + domeniche);
+    // un solo calendario per stagione
+    assert.strictEqual((await A.data.calendari.tutti()).length, 1, 'calendari duplicati');
+
+    // configurazione non valida rifiutata
+    let ko = false;
+    try {
+      await A.core.calendarioBattute.salva(ctx.stagioneAttiva.id, {
+        dataInizio: '2026-11-01', dataFine: '2026-10-01', giorniSettimana: ['DOMENICA'] });
+    } catch (e) { ko = true; }
+    assert.ok(ko, 'date incoerenti accettate');
+    ko = false;
+    try {
+      await A.core.calendarioBattute.salva(ctx.stagioneAttiva.id, {
+        dataInizio: '2026-11-01', dataFine: '2026-11-30', giorniSettimana: [] });
+    } catch (e) { ko = true; }
+    assert.ok(ko, 'giorni vuoti accettati');
+    d.window.close();
+  });
+
+  // ---------------------------------------------------------------- Blocco 5: carne
+  console.log('\n[Blocco 5 — carne, vendite e credito]');
+
+  // App con la battuta dimostrativa: 10 presenti, 100 kg, tutto venduto.
+  async function appCarne() {
+    const disco = H.nuovoDisco();
+    const d = await H.avviaApp(disco);
+    const A = d.window.App;
+    const ctx = await A.core.squadra.contesto();
+    const giornata = (await A.data.giornate.tutte()).filter((g) => g.zona === 'Valle Scura')[0];
+    const lotto = await A.data.lottiCarne.perGiornata(giornata.id);
+    return { dom: d, A, ctx, giornata, lotto };
+  }
+
+  await prova('C1. Il caso di riferimento: 100 kg, 10 presenti, 1.260 € di ricavo', async () => {
+    const c = await appCarne();
+    const r = await c.A.core.carne.riepilogoLotto(c.lotto.id);
+
+    assert.strictEqual(r.numeroPartecipanti, 10, 'partecipanti: ' + r.numeroPartecipanti);
+    assert.strictEqual(r.disponibileGrammi, 100000);
+    assert.strictEqual(r.vendutoGrammi, 100000, 'venduto: ' + r.vendutoGrammi);
+    assert.strictEqual(r.ritiratoGrammi, 0);
+    assert.strictEqual(r.residuoGrammi, 0, 'residuo: ' + r.residuoGrammi);
+    // 30x10 + 30x12 + 40x15 = 300 + 360 + 600 = 1.260 €
+    assert.strictEqual(r.ricavoTotaleCent, 126000, 'ricavo: ' + r.ricavoTotaleCent);
+
+    r.partecipanti.forEach((p) => {
+      assert.strictEqual(p.quotaSpettanteGrammi, 10000,
+        'quota teorica di ' + p.membro.cognome + ': ' + p.quotaSpettanteGrammi);
+      assert.strictEqual(p.vendutoAttribuitoGrammi, 10000,
+        'venduto attribuito a ' + p.membro.cognome);
+    });
+
+    const rs = await c.A.core.carne.riepilogoSocio(c.ctx.stagioneAttiva.id,
+      r.partecipanti[0].membro.id);
+    assert.strictEqual(rs.vendutoAttribuitoGrammi, 10000);
+    assert.strictEqual(rs.obbligoGrammi, 20000);
+    assert.strictEqual(rs.residuoObbligoGrammi, 10000, 'restano da vendere');
+    assert.strictEqual(rs.obbligoRaggiunto, false);
+    assert.strictEqual(rs.creditoMaturatoGrammi, 10000, 'credito maturato');
+    assert.strictEqual(rs.creditoDisponibileGrammi, 10000);
+    c.dom.window.close();
+  });
+
+  await prova('C2. Solo i PRESENTI entrano nello snapshot', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const presenze = (await A.data.presenze.tutte())
+      .filter((p) => p.giornataId === c.giornata.id);
+    const quote = await A.data.quoteCarne.perLotto(c.lotto.id);
+    const idQuote = quote.map((q) => q.membroId).sort().join(',');
+    const idPresenti = presenze.filter((p) => p.stato === 'PRESENTE')
+      .map((p) => p.membroId).sort().join(',');
+    assert.strictEqual(idQuote, idPresenti, 'lo snapshot non coincide con i presenti');
+
+    ['ASSENTE', 'LAVORO'].forEach((st) => {
+      const esclusi = presenze.filter((p) => p.stato === st);
+      assert.ok(esclusi.length > 0, 'manca un caso ' + st + ' nei dati demo');
+      esclusi.forEach((p) => {
+        assert.ok(quote.every((q) => q.membroId !== p.membroId),
+          st + ' incluso nello snapshot');
+      });
+    });
+    // i non segnati (nessun record) non compaiono
+    assert.strictEqual(quote.length, 10);
+    c.dom.window.close();
+  });
+
+  await prova('C3. Divisione esatta e con resto: la somma torna sempre', async () => {
+    const K = dom.window.App.core.carne;
+    assert.deepStrictEqual(K.ripartisci(100000, 10).join(','),
+      new Array(10).fill(10000).join(','));
+    const tre = K.ripartisci(10000, 3);
+    assert.strictEqual(tre.join(','), '3334,3333,3333', 'resto distribuito male: ' + tre);
+    assert.strictEqual(tre.reduce((a, b) => a + b, 0), 10000, 'la somma non torna');
+    [[7, 3], [1, 7], [99999, 7], [123456, 11]].forEach(([tot, n]) => {
+      const parti = K.ripartisci(tot, n);
+      assert.strictEqual(parti.length, n);
+      assert.strictEqual(parti.reduce((a, b) => a + b, 0), tot,
+        'somma errata per ' + tot + '/' + n);
+      assert.ok(Math.max.apply(null, parti) - Math.min.apply(null, parti) <= 1,
+        'quote troppo diverse per ' + tot + '/' + n);
+    });
+  });
+
+  await prova('C4. Somma delle quote uguale al peso disponibile', async () => {
+    const c = await appCarne();
+    const quote = await c.A.data.quoteCarne.perLotto(c.lotto.id);
+    const somma = quote.reduce((a, q) => a + q.quotaSpettanteGrammi, 0);
+    assert.strictEqual(somma, c.lotto.pesoNettoDisponibileGrammi, 'somma quote: ' + somma);
+    quote.forEach((q) => assert.ok(Number.isInteger(q.quotaSpettanteGrammi),
+      'quota non intera'));
+    c.dom.window.close();
+  });
+
+  await prova('C5. Un solo lotto per giornata', async () => {
+    const c = await appCarne();
+    let ko = false;
+    try {
+      await c.A.core.carne.creaLotto(c.giornata.id, { pesoNettoDisponibileGrammi: 50000 });
+    } catch (e) { ko = true; }
+    assert.ok(ko, 'creato un secondo lotto sulla stessa giornata');
+    assert.strictEqual((await c.A.data.lottiCarne.tutti())
+      .filter((l) => l.giornataId === c.giornata.id).length, 1, 'lotti duplicati');
+    c.dom.window.close();
+  });
+
+  await prova('C6. Vendite: tutti i tagli, prezzi predefiniti, prezzo modificabile', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    // nuova battuta con un lotto pulito
+    const g = await A.core.giornata.crea({ data: '2026-11-08', orarioRitrovo: '06:30',
+      zona: 'Prova vendite', capocacciaMembroId: null, note: '', stato: 'COMPLETATA' });
+    const isc = await A.data.iscrizioni.perStagione(c.ctx.stagioneAttiva.id);
+    await A.core.presenza.imposta(g.id, isc[0].membroId, 'PRESENTE');
+    await A.core.presenza.imposta(g.id, isc[1].membroId, 'PRESENTE');
+    const lotto = await A.core.carne.creaLotto(g.id, { pesoNettoDisponibileGrammi: 40000 });
+
+    const attesi = { MEZZENA: 1000, MACINATA: 1200, POLPA: 1500, SPEZZATINO: 1500 };
+    Object.keys(attesi).forEach((t) => {
+      assert.strictEqual(A.costanti.prezzoPredefinito(t), attesi[t],
+        'prezzo predefinito errato per ' + t);
+    });
+
+    for (const t of Object.keys(attesi)) {
+      await A.core.carne.registraVendita(lotto.id, {
+        data: '2026-11-08', tipoTaglio: t, pesoGrammi: 5000,
+        prezzoCentKg: attesi[t], note: ''
+      });
+    }
+    // prezzo diverso da quello predefinito, per questa sola vendita
+    await A.core.carne.registraVendita(lotto.id, {
+      data: '2026-11-08', tipoTaglio: 'POLPA', pesoGrammi: 5000,
+      prezzoCentKg: 1800, note: 'prezzo concordato'
+    });
+
+    const r = await A.core.carne.riepilogoLotto(lotto.id);
+    assert.strictEqual(r.vendutoGrammi, 25000);
+    // 5x10 + 5x12 + 5x15 + 5x15 + 5x18 = 50+60+75+75+90 = 350 €
+    assert.strictEqual(r.ricavoTotaleCent, 35000, 'ricavo: ' + r.ricavoTotaleCent);
+    const speciale = r.venditeValide.filter((v) => v.prezzoCentKg === 1800)[0];
+    assert.ok(speciale, 'il prezzo modificato non e\' stato salvato');
+    c.dom.window.close();
+  });
+
+  await prova('C7. Non si vende piu\' carne di quella disponibile', async () => {
+    const c = await appCarne();
+    const prima = normalizza(await c.A.data.repo.leggiStore(['venditeCarne']));
+    let messaggio = '';
+    try {
+      await c.A.core.carne.registraVendita(c.lotto.id, {
+        data: '2026-10-18', tipoTaglio: 'POLPA', pesoGrammi: 1000, prezzoCentKg: 1500 });
+    } catch (e) { messaggio = e.message; }
+    assert.ok(messaggio, 'vendita oltre la disponibilità accettata');
+    assert.strictEqual(normalizza(await c.A.data.repo.leggiStore(['venditeCarne'])), prima,
+      'vendita scritta nonostante il blocco');
+    c.dom.window.close();
+  });
+
+  await prova('C8. Vendita annullata: esce da kg, ricavi e crediti ma resta in archivio',
+    async () => {
+      const c = await appCarne();
+      const A = c.A;
+      const r0 = await A.core.carne.riepilogoLotto(c.lotto.id);
+      const vendita = r0.venditeValide.filter((v) => v.pesoGrammi === 40000)[0];
+
+      await A.core.carne.impostaVenditaAnnullata(vendita.id, true);
+      const r1 = await A.core.carne.riepilogoLotto(c.lotto.id);
+      assert.strictEqual(r1.vendutoGrammi, 60000, 'venduto: ' + r1.vendutoGrammi);
+      assert.strictEqual(r1.ricavoTotaleCent, 66000, 'ricavo: ' + r1.ricavoTotaleCent);
+      assert.strictEqual(r1.residuoGrammi, 40000);
+      assert.strictEqual(r1.vendite.length, 3, 'la vendita annullata e\' sparita');
+      const rs = await A.core.carne.riepilogoSocio(c.ctx.stagioneAttiva.id,
+        r1.partecipanti[0].membro.id);
+      assert.strictEqual(rs.creditoMaturatoGrammi, 6000, 'credito non ricalcolato');
+
+      await A.core.carne.impostaVenditaAnnullata(vendita.id, false);
+      const r2 = await A.core.carne.riepilogoLotto(c.lotto.id);
+      assert.strictEqual(r2.vendutoGrammi, 100000, 'ripristino non riuscito');
+      c.dom.window.close();
+    });
+
+  await prova('C9. Ritiro credito: 4 kg su 10 lasciano 6 kg, obbligo invariato', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+    const socio = r.partecipanti[0].membro;
+
+    // serve carne fisica nel lotto: si annulla una vendita da 40 kg
+    const vendita = r.venditeValide.filter((v) => v.pesoGrammi === 40000)[0];
+    await A.core.carne.impostaVenditaAnnullata(vendita.id, true);
+
+    await A.core.carne.registraRitiro({
+      membroId: socio.id, lottoCarneId: c.lotto.id,
+      data: '2026-10-20', pesoGrammi: 4000, note: ''
+    });
+
+    const rs = await A.core.carne.riepilogoSocio(c.ctx.stagioneAttiva.id, socio.id);
+    assert.strictEqual(rs.creditoMaturatoGrammi, 6000, 'maturato: ' + rs.creditoMaturatoGrammi);
+    assert.strictEqual(rs.creditoRitiratoGrammi, 4000);
+    assert.strictEqual(rs.creditoDisponibileGrammi, 2000);
+    // l'obbligo di vendita non viene toccato dal ritiro
+    assert.strictEqual(rs.vendutoAttribuitoGrammi, 6000, 'il ritiro ha alterato le vendite');
+    assert.strictEqual(rs.residuoObbligoGrammi, 14000);
+
+    const rl = await A.core.carne.riepilogoLotto(c.lotto.id);
+    assert.strictEqual(rl.ritiratoGrammi, 4000);
+    assert.strictEqual(rl.residuoGrammi, 100000 - 60000 - 4000);
+    c.dom.window.close();
+  });
+
+  await prova('C10. Il ritiro non supera credito né carne fisica', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+    const socio = r.partecipanti[0].membro;
+
+    // niente carne fisica: tutto venduto
+    let ko = false;
+    try {
+      await A.core.carne.registraRitiro({ membroId: socio.id, lottoCarneId: c.lotto.id,
+        data: '2026-10-20', pesoGrammi: 1000, note: '' });
+    } catch (e) { ko = true; }
+    assert.ok(ko, 'ritiro accettato senza carne residua nel lotto');
+
+    // credito insufficiente
+    const vendita = r.venditeValide.filter((v) => v.pesoGrammi === 40000)[0];
+    await A.core.carne.impostaVenditaAnnullata(vendita.id, true);
+    ko = false;
+    try {
+      await A.core.carne.registraRitiro({ membroId: socio.id, lottoCarneId: c.lotto.id,
+        data: '2026-10-20', pesoGrammi: 9000, note: '' });
+    } catch (e) { ko = true; }
+    assert.ok(ko, 'ritiro oltre il credito disponibile accettato');
+    assert.strictEqual((await A.data.ritiriCarne.tutti()).length, 0, 'ritiri scritti per errore');
+    c.dom.window.close();
+  });
+
+  await prova('C11. Ritiro annullato: torna il credito e la carne nel lotto', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+    const socio = r.partecipanti[0].membro;
+    const vendita = r.venditeValide.filter((v) => v.pesoGrammi === 40000)[0];
+    await A.core.carne.impostaVenditaAnnullata(vendita.id, true);
+
+    const ritiro = await A.core.carne.registraRitiro({ membroId: socio.id,
+      lottoCarneId: c.lotto.id, data: '2026-10-20', pesoGrammi: 3000, note: '' });
+    await A.core.carne.impostaRitiroAnnullato(ritiro.id, true);
+
+    const rs = await A.core.carne.riepilogoSocio(c.ctx.stagioneAttiva.id, socio.id);
+    assert.strictEqual(rs.creditoRitiratoGrammi, 0, 'ritiro annullato ancora conteggiato');
+    assert.strictEqual(rs.creditoDisponibileGrammi, 6000);
+    const rl = await A.core.carne.riepilogoLotto(c.lotto.id);
+    assert.strictEqual(rl.ritiratoGrammi, 0);
+    assert.strictEqual((await A.data.ritiriCarne.tutti()).length, 1,
+      'il ritiro annullato deve restare in archivio');
+    c.dom.window.close();
+  });
+
+  await prova('C12. Obbligo raggiunto e superato: credito non troncato', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+    const socio = r.partecipanti[0].membro;
+
+    // seconda battuta: stesso socio, altri 150 kg su 10 presenti -> +15 kg
+    const g = await A.core.giornata.crea({ data: '2026-11-15', orarioRitrovo: '06:30',
+      zona: 'Seconda battuta', capocacciaMembroId: null, note: '', stato: 'COMPLETATA' });
+    const idPresenti = r.partecipanti.map((p) => p.membro.id);
+    for (const id of idPresenti) await A.core.presenza.imposta(g.id, id, 'PRESENTE');
+    const lotto2 = await A.core.carne.creaLotto(g.id, { pesoNettoDisponibileGrammi: 150000 });
+    await A.core.carne.registraVendita(lotto2.id, { data: '2026-11-15',
+      tipoTaglio: 'MEZZENA', pesoGrammi: 150000, prezzoCentKg: 1000, note: '' });
+
+    const rs = await A.core.carne.riepilogoSocio(c.ctx.stagioneAttiva.id, socio.id);
+    assert.strictEqual(rs.vendutoAttribuitoGrammi, 25000, 'venduto: ' + rs.vendutoAttribuitoGrammi);
+    assert.strictEqual(rs.obbligoRaggiunto, true, 'obbligo non risulta raggiunto');
+    assert.strictEqual(rs.residuoObbligoGrammi, 0);
+    assert.strictEqual(rs.eccedenzaVenditaGrammi, 5000, 'eccedenza: ' + rs.eccedenzaVenditaGrammi);
+    // il credito non si ferma a 20 kg
+    assert.strictEqual(rs.creditoMaturatoGrammi, 25000, 'credito troncato');
+    assert.strictEqual(rs.creditoDisponibileGrammi, 25000);
+    c.dom.window.close();
+  });
+
+  await prova('C13. Cambiare le presenze dopo lo snapshot non riscrive la storia', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const prima = JSON.stringify((await A.data.quoteCarne.perLotto(c.lotto.id))
+      .map((q) => q.membroId + ':' + q.quotaSpettanteGrammi).sort());
+
+    const quote = await A.data.quoteCarne.perLotto(c.lotto.id);
+    await A.core.presenza.imposta(c.giornata.id, quote[0].membroId, 'NON_SEGNATO');
+
+    const dopo = JSON.stringify((await A.data.quoteCarne.perLotto(c.lotto.id))
+      .map((q) => q.membroId + ':' + q.quotaSpettanteGrammi).sort());
+    assert.strictEqual(dopo, prima, 'lo snapshot e\' cambiato con le presenze');
+
+    const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+    assert.strictEqual(r.numeroPartecipanti, 10, 'partecipanti storici alterati');
+    r.partecipanti.forEach((p) => assert.strictEqual(p.quotaSpettanteGrammi, 10000));
+
+    // con vendite registrate lo snapshot non si puo' rifare
+    let ko = false;
+    try { await A.core.carne.aggiornaSnapshot(c.lotto.id); } catch (e) { ko = true; }
+    assert.ok(ko, 'snapshot rifatto nonostante le vendite');
+    c.dom.window.close();
+  });
+
+  await prova('C14. Correzione del peso: ricalcola le quote, non scende sotto le uscite',
+    async () => {
+      const c = await appCarne();
+      const A = c.A;
+      const vendita = (await A.core.carne.riepilogoLotto(c.lotto.id))
+        .venditeValide.filter((v) => v.pesoGrammi === 40000)[0];
+      await A.core.carne.impostaVenditaAnnullata(vendita.id, true);   // venduto 60 kg
+
+      // sotto le uscite: bloccato
+      let ko = false;
+      try { await A.core.carne.aggiornaPeso(c.lotto.id, 50000); } catch (e) { ko = true; }
+      assert.ok(ko, 'peso portato sotto le uscite gia\' registrate');
+
+      await A.core.carne.aggiornaPeso(c.lotto.id, 80000);
+      const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+      assert.strictEqual(r.disponibileGrammi, 80000);
+      r.partecipanti.forEach((p) => assert.strictEqual(p.quotaSpettanteGrammi, 8000,
+        'quota non ricalcolata'));
+      const somma = r.partecipanti.reduce((a, p) => a + p.quotaSpettanteGrammi, 0);
+      assert.strictEqual(somma, 80000, 'somma quote errata dopo la correzione');
+      // il credito dipende dal venduto, non dal disponibile
+      const rs = await A.core.carne.riepilogoSocio(c.ctx.stagioneAttiva.id,
+        r.partecipanti[0].membro.id);
+      assert.strictEqual(rs.creditoMaturatoGrammi, 6000, 'credito alterato dal nuovo peso');
+      c.dom.window.close();
+    });
+
+  await prova('C15. Riepilogo di stagione derivato, e ricavo esposto per la futura Cassa',
+    async () => {
+      const c = await appCarne();
+      const A = c.A;
+      const r = await A.core.carne.riepilogoStagione(c.ctx.stagioneAttiva.id);
+      assert.strictEqual(r.totali.disponibileGrammi, 100000);
+      assert.strictEqual(r.totali.vendutoGrammi, 100000);
+      assert.strictEqual(r.totali.ritiratoGrammi, 0);
+      assert.strictEqual(r.totali.residuoGrammi, 0);
+      assert.strictEqual(r.totali.ricavoTotaleCent, 126000);
+      assert.strictEqual(r.soci.length, 21, 'soci nel riepilogo: ' + r.soci.length);
+      const conVendita = r.soci.filter((s) => s.vendutoAttribuitoGrammi > 0);
+      assert.strictEqual(conVendita.length, 10, 'soci con vendita: ' + conVendita.length);
+
+      assert.strictEqual(await A.core.carne.ricavoVenditeCarneStagione(c.ctx.stagioneAttiva.id),
+        126000, 'ricavo esposto errato');
+
+      // nessun saldo memorizzato sui membri o sulle iscrizioni
+      const d = await A.data.repo.leggiStore(['membri', 'iscrizioni']);
+      ['creditoCarne', 'creditoMaturatoGrammi', 'vendutoAttribuitoGrammi',
+       'ricavoCarne'].forEach((campo) => {
+        d.membri.forEach((m) => assert.ok(!(campo in m), 'saldo salvato sul membro: ' + campo));
+        d.iscrizioni.forEach((i) => assert.ok(!(campo in i),
+          'saldo salvato sull\'iscrizione: ' + campo));
+      });
+      c.dom.window.close();
+    });
+
+  await prova('C16. Cambio stagione: carne, quote, vendite e crediti restano intatti', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const prima = normalizza(await A.data.repo.leggiStore(
+      ['lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne']));
+    const stagioneOriginale = c.ctx.stagioneAttiva.id;
+
+    await A.core.stagione.creaStagione({ nome: '2027/2028', dataInizio: '2027-09-01',
+      dataFine: '2028-01-31', quotaAnnualePredefinitaCent: 24000 });
+
+    const nuova = await A.core.carne.riepilogoStagione(
+      (await A.core.squadra.contesto()).stagioneAttiva.id);
+    assert.strictEqual(nuova.totali.vendutoGrammi, 0, 'carne ereditata dalla nuova stagione');
+    assert.strictEqual(normalizza(await A.data.repo.leggiStore(
+      ['lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'])), prima,
+      'dati carne alterati dal cambio stagione');
+
+    await A.core.stagione.attivaStagione(stagioneOriginale);
+    const tornata = await A.core.carne.riepilogoStagione(stagioneOriginale);
+    assert.strictEqual(tornata.totali.ricavoTotaleCent, 126000, 'storico non ritrovato');
+    c.dom.window.close();
+  });
+
+  // ---------------------------------------------------------------- Blocco 5: UI
+  console.log('\n[Blocco 5 — schermate carne]');
+
+  await prova('C17. La scheda giornata mostra la carne e porta a gestirla', async () => {
+    const c = await appCarne();
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id, 'Carne della battuta');
+    const t = c.dom.window.document.body.textContent.replace(/\s+/g, ' ');
+    assert.ok(t.includes('100,0 kg'), 'carne netta non mostrata: ' + t.slice(0, 200));
+    assert.ok(t.includes('1260,00 €') || t.includes('1.260,00 €'), 'ricavo non mostrato');
+    assert.ok(H.$(c.dom, '[data-vai="#/giornata/' + c.giornata.id + '/carne"]'),
+      'pulsante Gestisci carne mancante');
+
+    await H.vaiA(c.dom, '#/giornata/' + c.giornata.id + '/carne', 'Vendite');
+    const t2 = c.dom.window.document.body.textContent.replace(/\s+/g, ' ');
+    ['Mezzena', 'Macinata', 'Polpa'].forEach((x) => {
+      assert.ok(t2.includes(x), 'vendita non elencata: ' + x);
+    });
+    assert.ok(t2.includes('10 partecipanti') || t2.includes('10partecipanti'),
+      'partecipanti non mostrati');
+    c.dom.window.close();
+  });
+
+  await prova('C18. Form vendita: prezzo precompilato dal taglio e salvataggio', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const g = await A.core.giornata.crea({ data: '2026-11-11', orarioRitrovo: '06:30',
+      zona: 'Form vendita', capocacciaMembroId: null, note: '', stato: 'COMPLETATA' });
+    const isc = await A.data.iscrizioni.perStagione(c.ctx.stagioneAttiva.id);
+    await A.core.presenza.imposta(g.id, isc[0].membroId, 'PRESENTE');
+    await A.core.carne.creaLotto(g.id, { pesoNettoDisponibileGrammi: 20000 });
+
+    await H.vaiA(c.dom, '#/giornata/' + g.id + '/carne/vendita', 'Nuova vendita');
+    assert.strictEqual(H.$(c.dom, '#v-prezzo').value, '10,00', 'prezzo iniziale errato');
+    H.scrivi(c.dom, '#v-taglio', 'POLPA');
+    await H.pausa(c.dom, 30);
+    assert.strictEqual(H.$(c.dom, '#v-prezzo').value, '15,00',
+      'prezzo non aggiornato dal taglio');
+    H.scrivi(c.dom, '#v-peso', '10');
+    H.clic(c.dom, '#btn-salva-vendita');
+    await H.attesa(c.dom, () =>
+      c.dom.window.location.hash === '#/giornata/' + g.id + '/carne', 'ritorno alla carne');
+
+    const lotto = await A.data.lottiCarne.perGiornata(g.id);
+    const r = await A.core.carne.riepilogoLotto(lotto.id);
+    assert.strictEqual(r.vendutoGrammi, 10000);
+    assert.strictEqual(r.ricavoTotaleCent, 15000, 'ricavo: ' + r.ricavoTotaleCent);
+    c.dom.window.close();
+  });
+
+  await prova('C19. Scheda socio: obbligo di vendita e credito sono due blocchi distinti',
+    async () => {
+      const c = await appCarne();
+      const r = await c.A.core.carne.riepilogoLotto(c.lotto.id);
+      const socio = r.partecipanti[0].membro;
+      await H.vaiA(c.dom, '#/socio/' + socio.id, 'Credito carne');
+      const t = c.dom.window.document.body.textContent.replace(/\s+/g, ' ');
+      assert.ok(t.includes('Vendita per la squadra'), 'blocco obbligo mancante');
+      assert.ok(t.includes('Credito carne'), 'blocco credito mancante');
+      assert.ok(t.includes('10,0 kg'), 'valori carne non mostrati');
+      assert.ok(t.includes('20,0 kg'), 'obbligo non mostrato');
+      c.dom.window.close();
+    });
+
+  await prova('C20. Riepilogo carne di stagione raggiungibile dalla Home', async () => {
+    const c = await appCarne();
+    await H.vaiA(c.dom, '#/home', 'Carne stagione');
+    assert.ok(H.$(c.dom, '[data-vai="#/carne"]'), 'riga Carne stagione mancante');
+    // la carne non diventa una quinta scheda della barra bassa
+    const tab = H.$$(c.dom, '#barra-bassa button').map((b) => b.textContent.trim());
+    assert.strictEqual(tab.join(','), 'Home,Giornate,Capi,Squadra',
+      'barra bassa modificata: ' + tab.join(','));
+
+    H.clic(c.dom, '[data-vai="#/carne"]');
+    await H.attesa(c.dom, () => c.dom.window.location.hash === '#/carne', 'apertura carne');
+    await H.pausa(c.dom, 80);
+    const t = c.dom.window.document.body.textContent.replace(/\s+/g, ' ');
+    assert.ok(t.includes('Carne netta registrata'), 'riepilogo non mostrato');
+    assert.ok(t.includes('Pier Nolli'), 'elenco soci mancante');
+    c.dom.window.close();
+  });
+
+  // ---------------------------------------------------------------- Blocco 5: backup
+  console.log('\n[Blocco 5 — validazione backup]');
+
+  await rifiutaSenzaScrivere('V20. Lotto carne con giornata inesistente rifiutato',
+    (b) => { b.dati.lottiCarne[0].giornataId = 'gio_fantasma'; }, 'giornata inesistente');
+
+  await rifiutaSenzaScrivere('V21. Due lotti sulla stessa giornata rifiutati',
+    (b) => {
+      const copia = JSON.parse(JSON.stringify(b.dati.lottiCarne[0]));
+      copia.id = 'lot_copia';
+      b.dati.lottiCarne.push(copia);
+    }, 'stessa giornata');
+
+  await rifiutaSenzaScrivere('V22. Peso del lotto non intero rifiutato',
+    (b) => { b.dati.lottiCarne[0].pesoNettoDisponibileGrammi = 100000.5; }, 'peso netto');
+
+  await rifiutaSenzaScrivere('V23. Somma delle quote diversa dal peso rifiutata',
+    (b) => { b.dati.quoteCarne[0].quotaSpettanteGrammi += 1; }, 'somma delle quote');
+
+  await rifiutaSenzaScrivere('V24. Quota di un socio non iscritto alla stagione rifiutata',
+    (b) => {
+      const m2 = JSON.parse(JSON.stringify(b.dati.membri[0]));
+      m2.id = 'mbr_non_iscritto_carne';
+      b.dati.membri.push(m2);
+      b.dati.quoteCarne[0].membroId = 'mbr_non_iscritto_carne';
+    }, 'non è iscritto alla stagione');
+
+  await rifiutaSenzaScrivere('V25. Vendita con lotto inesistente rifiutata',
+    (b) => { b.dati.venditeCarne[0].lottoCarneId = 'lot_fantasma'; }, 'lotto inesistente');
+
+  await rifiutaSenzaScrivere('V26. Tipo di taglio non valido rifiutato',
+    (b) => { b.dati.venditeCarne[0].tipoTaglio = 'COSTINE'; }, 'taglio non riconosciuto');
+
+  await rifiutaSenzaScrivere('V27. Prezzo di vendita non intero rifiutato',
+    (b) => { b.dati.venditeCarne[0].prezzoCentKg = 10.5; }, 'prezzo non valido');
+
+  await rifiutaSenzaScrivere('V28. Vendite oltre la carne disponibile rifiutate',
+    (b) => {
+      const copia = JSON.parse(JSON.stringify(b.dati.venditeCarne[0]));
+      copia.id = 'ven_extra';
+      copia.pesoGrammi = 50000;
+      b.dati.venditeCarne.push(copia);
+    }, 'superano la carne disponibile');
+
+  await rifiutaSenzaScrivere('V29. Calendario con giorno non riconosciuto rifiutato',
+    (b) => { b.dati.calendariBattuta[0].giorniSettimana = ['MERCOLEDI', 'LUNEDINO']; },
+    'giorno non riconosciuto');
+
+  await rifiutaSenzaScrivere('V30. Calendario con data di fine anteriore rifiutato',
+    (b) => { b.dati.calendariBattuta[0].dataFine = '2026-09-01'; }, 'precede quella di inizio');
+
+  await rifiutaSenzaScrivere('V31. Due calendari per la stessa stagione rifiutati',
+    (b) => {
+      const copia = JSON.parse(JSON.stringify(b.dati.calendariBattuta[0]));
+      copia.id = 'cal_copia';
+      b.dati.calendariBattuta.push(copia);
+    }, 'stessa stagione');
+
+  await rifiutaSenzaScrivere('V32. Obbligo di vendita non intero rifiutato',
+    (b) => { b.dati.configCarne[0].obbligoVenditaGrammi = 20000.5; }, 'obbligo di vendita');
+
+  await prova('V33. Export e reimport completi con i nuovi store', async () => {
+    const A = dom.window.App;
+    const backup = await A.core.backup.costruisciBackup();
+    assert.strictEqual(backup.schemaVersion, 5);
+    ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+     'venditeCarne', 'ritiriCarne'].forEach((n) => {
+      assert.ok(Array.isArray(backup.dati[n]), 'store mancante: ' + n);
+    });
+    assert.ok(backup.dati.lottiCarne.length > 0, 'nessun lotto da esportare');
+
+    await A.data.repo.scrivi(A.data.schema.nomiStore, (t) => {
+      A.data.schema.nomiStore.forEach((n) => t.svuota(n));
+    });
+    await A.core.backup.importaBackup(JSON.parse(JSON.stringify(backup)));
+    assert.strictEqual(normalizza(await leggiTutto(dom)), normalizza(backup.dati),
+      'i dati reimportati non coincidono');
+  });
+
+  await prova('C21. Eliminazione dati di prova: la carne demo sparisce, l\'anagrafica resta',
+    async () => {
+      const c = await appCarne();
+      const A = c.A;
+      const ant = await A.core.backup.anteprimaEliminazioneDemo();
+      assert.ok(ant.conteggi.lottiCarne > 0, 'lotti demo non contati');
+      assert.ok(ant.conteggi.quoteCarne > 0, 'quote demo non contate');
+      assert.ok(ant.conteggi.venditeCarne > 0, 'vendite demo non contate');
+      // calendario e configurazione sono dati reali della stagione
+      assert.strictEqual(ant.conteggi.calendariBattuta, 0, 'calendario contato come demo');
+      assert.strictEqual(ant.conteggi.configCarne, 0, 'configurazione contata come demo');
+      assert.strictEqual(ant.puoProcedere, true, ant.problemi.join(' | '));
+
+      await A.core.backup.eliminaDatiDemo();
+      const d = await A.data.repo.leggiStore(A.data.schema.nomiStoreBackup);
+      ['lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'].forEach((n) => {
+        assert.strictEqual(d[n].length, 0, 'store non svuotato: ' + n);
+      });
+      assert.strictEqual(d.membri.length, 21, 'soci reali eliminati');
+      assert.strictEqual(d.calendariBattuta.length, 1, 'calendario reale eliminato');
+      assert.strictEqual(d.configCarne.length, 1, 'configurazione reale eliminata');
+      c.dom.window.close();
+    });
+
+  await prova('C22. Una vendita reale su un lotto demo blocca la pulizia', async () => {
+    const c = await appCarne();
+    const A = c.A;
+    const r = await A.core.carne.riepilogoLotto(c.lotto.id);
+    const vendita = r.venditeValide[0];
+    await A.core.carne.impostaVenditaAnnullata(vendita.id, true);
+    await A.core.carne.registraVendita(c.lotto.id, {
+      data: '2026-10-19', tipoTaglio: 'POLPA', pesoGrammi: 1000,
+      prezzoCentKg: 1500, note: 'vendita reale'
+    });
+
+    const prima = normalizza(await A.data.repo.leggiStore(A.data.schema.nomiStoreBackup));
+    const ant = await A.core.backup.anteprimaEliminazioneDemo();
+    assert.strictEqual(ant.puoProcedere, false, 'pulizia non bloccata');
+    assert.ok(ant.problemi.join(' ').toLowerCase().includes('vendita reale'),
+      ant.problemi.join(' | '));
+    let ko = false;
+    try { await A.core.backup.eliminaDatiDemo(); } catch (e) { ko = true; }
+    assert.ok(ko, 'pulizia eseguita nonostante il blocco');
+    assert.strictEqual(normalizza(await A.data.repo.leggiStore(A.data.schema.nomiStoreBackup)),
+      prima, 'dati modificati nonostante il blocco');
     c.dom.window.close();
   });
 
@@ -3583,8 +4661,13 @@ function normalizza(dati) {
       { cwd: H.RADICE }).toString().trim().split('\n');
     // Giornate, presenze e abbattimenti appartengono ai Blocchi 2 e 3.
     // Restano vietati i moduli dei blocchi successivi.
-    const vietate = ['lavorazione', 'macellazione', 'lotto',
-      'carne', 'vendit', 'contabil', 'serviceWorker', 'manifest', 'firebase', 'supabase',
+    // Nota: la parola "carne" compare in un testo dell'interfaccia
+    // ("i partecipanti saranno utilizzati per la futura ripartizione della
+    // carne"), quindi al suo posto si vietano gli identificatori del modulo.
+    // Carne e vendite appartengono al Blocco 5. Restano vietati i moduli
+    // non ancora avviati: contabilita' generale, cloud, service worker.
+    const vietate = ['contabil', 'affitto', 'mangime', 'veterinario', 'carburante',
+      'serviceWorker', 'manifest', 'firebase', 'supabase',
       'localStorage', 'sessionStorage', 'fetch('];
     // I commenti descrivono anche i moduli futuri: qui interessa il CODICE.
     function senzaCommenti(src) {

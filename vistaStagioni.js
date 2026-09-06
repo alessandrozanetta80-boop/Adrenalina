@@ -45,7 +45,19 @@
         var quotaSuggerita = attiva ? Q.euroPerInput(attiva.quotaAnnualePredefinitaCent) : '0,00';
 
         C.monta(
-          '<div class="sezione"><h3>Stagione attiva</h3>' +
+          '<div class="sezione"><h3>Calendario battute</h3>' +
+          '<div class="lista">' +
+            '<button class="voce" data-vai="#/calendario">' +
+              '<span class="principale">' +
+                '<span class="titolo">Configura il calendario</span>' +
+                '<span class="sotto">periodo e giorni di battuta della stagione</span>' +
+              '</span>' +
+              '<span class="freccia">&#8250;</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="sezione"><h3>Stagione attiva</h3>' +
             (attiva ? cardStagione(attiva) : '<div class="vuoto">Nessuna stagione attiva.</div>') +
           '</div>' +
 

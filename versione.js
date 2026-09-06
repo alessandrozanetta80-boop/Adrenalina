@@ -2,8 +2,8 @@
   'use strict';
   global.App = global.App || {};
   App.versione = {
-    APP_VERSION: '0.4.0',
-    SCHEMA_VERSION: 4,
+    APP_VERSION: '0.5.0',
+    SCHEMA_VERSION: 5,
     FORMATO_BACKUP: 'adrenalina-backup'
   };
 })(typeof window !== 'undefined' ? window : globalThis);

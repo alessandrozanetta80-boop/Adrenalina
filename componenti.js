@@ -104,7 +104,9 @@
   }
 
   function intestazione(opzioni) {
+    if (typeof document === 'undefined' || !document) return;
     var testa = document.getElementById('intestazione');
+    if (!testa) return;
     // Sulla Home il nome squadra e' gia' nella testata identitaria:
     // la barra si nasconde per non ripeterlo.
     testa.classList.toggle('nascosta', !!opzioni.nascosta);
@@ -124,7 +126,10 @@
   }
 
   function monta(html) {
+    // Se la pagina e' stata chiusa nel frattempo non c'e' nulla da disegnare.
+    if (typeof document === 'undefined' || !document) return;
     var app = document.getElementById('app');
+    if (!app) return;
     app.innerHTML = html;
     app.scrollTop = 0;
     if (document.scrollingElement) document.scrollingElement.scrollTop = 0;

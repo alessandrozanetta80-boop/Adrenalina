@@ -42,7 +42,10 @@
     3: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
         'abbattimenti'],
     4: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
-        'abbattimenti', 'controlliSanitari']
+        'abbattimenti', 'controlliSanitari'],
+    5: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
+        'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
+        'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne']
   };
   var MAX_ERRORI = 12;
 
@@ -56,6 +59,10 @@
 
   function interoNonNegativo(v) {
     return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= 0;
+  }
+
+  function interoPositivo(v) {
+    return interoNonNegativo(v) && v > 0;
   }
 
   function etichetta(rec, i) {
@@ -455,6 +462,221 @@
       }
     });
 
+    // --- calendari battuta ---
+    var calendariPerId = {}, calendarioPerStagione = {};
+    (dati.calendariBattuta || []).forEach(function (c, i) {
+      if (!c || typeof c !== 'object' || !idValido(c.id)) {
+        segnala('Calendario battute senza id valido ' + etichetta(c, i) + '.'); return;
+      }
+      if (calendariPerId[c.id]) { segnala('Due calendari con lo stesso id "' + c.id + '".'); return; }
+      calendariPerId[c.id] = true;
+      if (!idValido(c.stagioneId) || !stagioniPerId[c.stagioneId]) {
+        segnala('Calendario ' + etichetta(c, i) + ' punta a una stagione inesistente.'); return;
+      }
+      if (calendarioPerStagione[c.stagioneId]) {
+        segnala('Due calendari battute per la stessa stagione.');
+      }
+      calendarioPerStagione[c.stagioneId] = true;
+      var cal = App.core.calendario;
+      var iOk = cal.dataValida(c.dataInizio), fOk = cal.dataValida(c.dataFine);
+      if (!iOk) segnala('Calendario ' + etichetta(c, i) + ': data di inizio non valida.');
+      if (!fOk) segnala('Calendario ' + etichetta(c, i) + ': data di fine non valida.');
+      if (iOk && fOk && c.dataFine < c.dataInizio) {
+        segnala('Calendario ' + etichetta(c, i) + ': la data di fine precede quella di inizio.');
+      }
+      if (!Array.isArray(c.giorniSettimana) || c.giorniSettimana.length === 0) {
+        segnala('Calendario ' + etichetta(c, i) + ': giorniSettimana deve essere una lista non vuota.');
+      } else {
+        var visti = {};
+        c.giorniSettimana.forEach(function (g) {
+          if (!App.costanti.giornoValido(g)) {
+            segnala('Calendario ' + etichetta(c, i) + ': giorno non riconosciuto "' + g + '".');
+          }
+          if (visti[g]) segnala('Calendario ' + etichetta(c, i) + ': giorno ripetuto "' + g + '".');
+          visti[g] = true;
+        });
+      }
+    });
+
+    // --- configurazione carne ---
+    var configPerId = {}, configPerStagione = {};
+    (dati.configCarne || []).forEach(function (c, i) {
+      if (!c || typeof c !== 'object' || !idValido(c.id)) {
+        segnala('Configurazione carne senza id valido ' + etichetta(c, i) + '.'); return;
+      }
+      if (configPerId[c.id]) { segnala('Due configurazioni carne con lo stesso id.'); return; }
+      configPerId[c.id] = true;
+      if (!idValido(c.stagioneId) || !stagioniPerId[c.stagioneId]) {
+        segnala('Configurazione carne ' + etichetta(c, i) + ': stagione inesistente.'); return;
+      }
+      if (configPerStagione[c.stagioneId]) {
+        segnala('Due configurazioni carne per la stessa stagione.');
+      }
+      configPerStagione[c.stagioneId] = true;
+      if (!interoNonNegativo(c.obbligoVenditaGrammi)) {
+        segnala('Configurazione carne ' + etichetta(c, i) +
+          ': obbligo di vendita non valido, deve essere un intero in grammi.');
+      }
+      var prezzi = c.prezziCentKg;
+      if (!prezzi || typeof prezzi !== 'object') {
+        segnala('Configurazione carne ' + etichetta(c, i) + ': prezzi mancanti.');
+      } else {
+        Object.keys(prezzi).forEach(function (k) {
+          if (!interoNonNegativo(prezzi[k])) {
+            segnala('Configurazione carne ' + etichetta(c, i) +
+              ': prezzo non valido per "' + k + '".');
+          }
+        });
+      }
+    });
+
+    // --- lotti carne ---
+    var lottiPerId = {}, lottoPerGiornata = {};
+    (dati.lottiCarne || []).forEach(function (l, i) {
+      if (!l || typeof l !== 'object' || !idValido(l.id)) {
+        segnala('Lotto carne senza id valido ' + etichetta(l, i) + '.'); return;
+      }
+      if (lottiPerId[l.id]) { segnala('Due lotti carne con lo stesso id "' + l.id + '".'); return; }
+      if (!idValido(l.giornataId) || !idValido(l.squadraId) || !idValido(l.stagioneId)) {
+        segnala('Lotto carne ' + etichetta(l, i) + ' senza giornata, squadra o stagione.'); return;
+      }
+      var gio = giornatePerId[l.giornataId];
+      if (!gio) {
+        segnala('Lotto carne ' + etichetta(l, i) + ' punta a una giornata inesistente.'); return;
+      }
+      if (gio.squadraId !== l.squadraId || gio.stagioneId !== l.stagioneId) {
+        segnala('Lotto carne ' + etichetta(l, i) +
+          ': squadra o stagione non coerenti con la giornata.'); return;
+      }
+      if (lottoPerGiornata[l.giornataId]) {
+        segnala('Due lotti carne per la stessa giornata.');
+      }
+      lottoPerGiornata[l.giornataId] = true;
+      if (!interoPositivo(l.pesoNettoDisponibileGrammi)) {
+        segnala('Lotto carne ' + etichetta(l, i) +
+          ': peso netto non valido, deve essere un intero in grammi maggiore di zero.');
+        return;
+      }
+      lottiPerId[l.id] = l;
+    });
+
+    // --- quote carne (snapshot dei partecipanti) ---
+    var quotePerId = {}, coppieQuota = {}, sommaQuote = {};
+    (dati.quoteCarne || []).forEach(function (q, i) {
+      if (!q || typeof q !== 'object' || !idValido(q.id)) {
+        segnala('Quota carne senza id valido ' + etichetta(q, i) + '.'); return;
+      }
+      if (quotePerId[q.id]) { segnala('Due quote carne con lo stesso id.'); return; }
+      quotePerId[q.id] = true;
+      var lotto = lottiPerId[q.lottoCarneId];
+      if (!lotto) {
+        segnala('Quota carne ' + etichetta(q, i) + ' punta a un lotto inesistente.'); return;
+      }
+      var m = membriPerId[q.membroId];
+      if (!m) {
+        segnala('Quota carne ' + etichetta(q, i) + ' punta a un socio inesistente.'); return;
+      }
+      if (m.squadraId !== lotto.squadraId) {
+        segnala('Quota carne ' + etichetta(q, i) + ': il socio è di un\u2019altra squadra.'); return;
+      }
+      if (!iscrittiPerStagione[lotto.stagioneId + '|' + q.membroId]) {
+        segnala('Quota carne ' + etichetta(q, i) +
+          ': il socio non è iscritto alla stagione del lotto.'); return;
+      }
+      var coppia = q.lottoCarneId + '|' + q.membroId;
+      if (coppieQuota[coppia]) segnala('Due quote carne per lo stesso socio nello stesso lotto.');
+      coppieQuota[coppia] = true;
+      if (!interoNonNegativo(q.quotaSpettanteGrammi)) {
+        segnala('Quota carne ' + etichetta(q, i) + ': quota non valida.');
+        return;
+      }
+      sommaQuote[q.lottoCarneId] = (sommaQuote[q.lottoCarneId] || 0) + q.quotaSpettanteGrammi;
+    });
+    Object.keys(lottiPerId).forEach(function (idL) {
+      var l = lottiPerId[idL];
+      var somma = sommaQuote[idL] || 0;
+      if (somma !== l.pesoNettoDisponibileGrammi) {
+        segnala('Lotto carne "' + idL + '": la somma delle quote (' + somma +
+          ' g) non corrisponde al peso disponibile (' + l.pesoNettoDisponibileGrammi + ' g).');
+      }
+    });
+
+    // --- vendite ---
+    var venditePerId = {}, uscitePerLotto = {};
+    (dati.venditeCarne || []).forEach(function (v, i) {
+      if (!v || typeof v !== 'object' || !idValido(v.id)) {
+        segnala('Vendita carne senza id valido ' + etichetta(v, i) + '.'); return;
+      }
+      if (venditePerId[v.id]) { segnala('Due vendite con lo stesso id.'); return; }
+      venditePerId[v.id] = true;
+      if (!lottiPerId[v.lottoCarneId]) {
+        segnala('Vendita ' + etichetta(v, i) + ' punta a un lotto inesistente.'); return;
+      }
+      if (!App.costanti.taglioValido(v.tipoTaglio)) {
+        segnala('Vendita ' + etichetta(v, i) + ': tipo di taglio non riconosciuto.');
+      }
+      if (!App.core.calendario.dataValida(v.data)) {
+        segnala('Vendita ' + etichetta(v, i) + ': data non valida.');
+      }
+      if (!interoPositivo(v.pesoGrammi)) {
+        segnala('Vendita ' + etichetta(v, i) + ': peso non valido.');
+      }
+      if (!interoNonNegativo(v.prezzoCentKg)) {
+        segnala('Vendita ' + etichetta(v, i) + ': prezzo non valido.');
+      }
+      if (typeof v.annullata !== 'boolean') {
+        segnala('Vendita ' + etichetta(v, i) + ': il campo annullata deve essere vero o falso.');
+      }
+      if (v.annullata !== true && interoPositivo(v.pesoGrammi)) {
+        uscitePerLotto[v.lottoCarneId] = (uscitePerLotto[v.lottoCarneId] || 0) + v.pesoGrammi;
+      }
+    });
+
+    // --- ritiri ---
+    var ritiriPerId = {};
+    (dati.ritiriCarne || []).forEach(function (r, i) {
+      if (!r || typeof r !== 'object' || !idValido(r.id)) {
+        segnala('Ritiro carne senza id valido ' + etichetta(r, i) + '.'); return;
+      }
+      if (ritiriPerId[r.id]) { segnala('Due ritiri con lo stesso id.'); return; }
+      ritiriPerId[r.id] = true;
+      var lotto = lottiPerId[r.lottoCarneId];
+      if (!lotto) {
+        segnala('Ritiro ' + etichetta(r, i) + ' punta a un lotto inesistente.'); return;
+      }
+      if (!membriPerId[r.membroId]) {
+        segnala('Ritiro ' + etichetta(r, i) + ' punta a un socio inesistente.'); return;
+      }
+      if (!idValido(r.stagioneId) || !stagioniPerId[r.stagioneId]) {
+        segnala('Ritiro ' + etichetta(r, i) + ' punta a una stagione inesistente.'); return;
+      }
+      if (r.stagioneId !== lotto.stagioneId) {
+        segnala('Ritiro ' + etichetta(r, i) + ': stagione diversa da quella del lotto.');
+      }
+      if (!App.core.calendario.dataValida(r.data)) {
+        segnala('Ritiro ' + etichetta(r, i) + ': data non valida.');
+      }
+      if (!interoPositivo(r.pesoGrammi)) {
+        segnala('Ritiro ' + etichetta(r, i) + ': peso non valido.');
+      }
+      if (typeof r.annullato !== 'boolean') {
+        segnala('Ritiro ' + etichetta(r, i) + ': il campo annullato deve essere vero o falso.');
+      }
+      if (r.annullato !== true && interoPositivo(r.pesoGrammi)) {
+        uscitePerLotto[r.lottoCarneId] = (uscitePerLotto[r.lottoCarneId] || 0) + r.pesoGrammi;
+      }
+    });
+
+    // Vincolo fisico: vendite + ritiri non superano la carne del lotto.
+    Object.keys(uscitePerLotto).forEach(function (idL) {
+      var l = lottiPerId[idL];
+      if (!l) return;
+      if (uscitePerLotto[idL] > l.pesoNettoDisponibileGrammi) {
+        segnala('Lotto carne "' + idL + '": vendite e ritiri (' + uscitePerLotto[idL] +
+          ' g) superano la carne disponibile (' + l.pesoNettoDisponibileGrammi + ' g).');
+      }
+    });
+
     // --- meta ---
     (dati.meta || []).forEach(function (m, i) {
       if (!m || typeof m !== 'object' || !idValido(m.chiave)) {
@@ -496,6 +718,14 @@
     // Schema 3 -> 4: compaiono i controlli sanitari, vuoti.
     3: function (backup) {
       backup.dati.controlliSanitari = backup.dati.controlliSanitari || [];
+      return backup;
+    },
+    // Schema 4 -> 5: calendario battute e modulo carne, tutti vuoti.
+    4: function (backup) {
+      ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
+       'venditeCarne', 'ritiriCarne'].forEach(function (n) {
+        backup.dati[n] = backup.dati[n] || [];
+      });
       return backup;
     }
   };
@@ -588,6 +818,12 @@
     var presenzeDemo = insiemeDemo(dati.presenze);
     var abbattimentiDemo = insiemeDemo(dati.abbattimenti);
     var controlliDemo = insiemeDemo(dati.controlliSanitari);
+    var calendariDemo = insiemeDemo(dati.calendariBattuta);
+    var configCarneDemo = insiemeDemo(dati.configCarne);
+    var lottiDemo = insiemeDemo(dati.lottiCarne);
+    var quoteCarneDemo = insiemeDemo(dati.quoteCarne);
+    var venditeDemo = insiemeDemo(dati.venditeCarne);
+    var ritiriDemo = insiemeDemo(dati.ritiriCarne);
 
     var problemi = [];
     function etichettaMembro(m) { return ((m.nome || '') + ' ' + (m.cognome || '')).trim() || m.id; }
@@ -653,6 +889,33 @@
         problemi.push('Un controllo sanitario reale \u00e8 collegato a un capo demo.');
       }
     });
+    (dati.quoteCarne || []).forEach(function (q) {
+      if (q.demo === true) return;
+      if (lottiDemo[q.lottoCarneId]) {
+        problemi.push('Una quota carne reale \u00e8 collegata a un lotto demo.');
+      }
+    });
+    (dati.venditeCarne || []).forEach(function (v) {
+      if (v.demo === true) return;
+      if (lottiDemo[v.lottoCarneId]) {
+        problemi.push('Una vendita reale \u00e8 collegata a un lotto carne demo.');
+      }
+    });
+    (dati.ritiriCarne || []).forEach(function (r) {
+      if (r.demo === true) return;
+      if (lottiDemo[r.lottoCarneId]) {
+        problemi.push('Un ritiro reale \u00e8 collegato a un lotto carne demo.');
+      }
+      if (membriDemo[r.membroId]) {
+        problemi.push('Un ritiro reale \u00e8 collegato a un socio demo.');
+      }
+    });
+    (dati.lottiCarne || []).forEach(function (l) {
+      if (l.demo === true) return;
+      if (giornateDemo[l.giornataId]) {
+        problemi.push('Un lotto carne reale \u00e8 collegato a una giornata demo.');
+      }
+    });
     (dati.squadre || []).forEach(function (sq) {
       if (sq.demo !== true && sq.stagioneAttivaId && stagioniDemo[sq.stagioneAttivaId]) {
         problemi.push('La squadra reale "' + (sq.nome || sq.id) +
@@ -675,14 +938,23 @@
         giornate: Object.keys(giornateDemo).length,
         presenze: Object.keys(presenzeDemo).length,
         abbattimenti: Object.keys(abbattimentiDemo).length,
-        controlliSanitari: Object.keys(controlliDemo).length
+        controlliSanitari: Object.keys(controlliDemo).length,
+        calendariBattuta: Object.keys(calendariDemo).length,
+        configCarne: Object.keys(configCarneDemo).length,
+        lottiCarne: Object.keys(lottiDemo).length,
+        quoteCarne: Object.keys(quoteCarneDemo).length,
+        venditeCarne: Object.keys(venditeDemo).length,
+        ritiriCarne: Object.keys(ritiriDemo).length
       },
       insiemi: {
         squadre: squadreDemo, stagioni: stagioniDemo,
         membri: membriDemo, iscrizioni: iscrizioniDemo,
         giornate: giornateDemo, presenze: presenzeDemo,
         abbattimenti: abbattimentiDemo,
-        controlliSanitari: controlliDemo
+        controlliSanitari: controlliDemo,
+        calendariBattuta: calendariDemo, configCarne: configCarneDemo,
+        lottiCarne: lottiDemo, quoteCarne: quoteCarneDemo,
+        venditeCarne: venditeDemo, ritiriCarne: ritiriDemo
       }
     };
   }
@@ -707,7 +979,10 @@
       if (totale === 0) return { eliminati: analisi.conteggi, totale: 0 };
 
       // Ordine figli -> genitori.
-      var ordine = ['controlliSanitari', 'abbattimenti', 'presenze', 'giornate',
+      // Figli prima dei genitori.
+      var ordine = ['ritiriCarne', 'venditeCarne', 'quoteCarne', 'lottiCarne',
+                    'configCarne', 'calendariBattuta',
+                    'controlliSanitari', 'abbattimenti', 'presenze', 'giornate',
                     'iscrizioni', 'membri', 'stagioni', 'squadre'];
       var squadraCorrente = null;
       (dati.meta || []).forEach(function (m) {
