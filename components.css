@@ -1300,3 +1300,30 @@
   cursor: pointer;
 }
 .voce.senza-diritto .titolo { color: var(--testo-tenue); }
+
+/* ============================================================
+   Una sola regola per i pulsanti:
+     arancione = l'azione principale della schermata (una sola)
+     contorno  = azioni secondarie
+     rosso     = azioni distruttive
+   Il verde resta il colore dell'app: barra, marchio, stati positivi.
+   ============================================================ */
+.btn-primario,
+.btn-azione {
+  background: var(--arancio);
+  border: 0;
+  color: #fff;
+  font-weight: 700;
+}
+.btn-primario:active,
+.btn-azione:active { filter: brightness(.94); }
+
+.btn-fantasma,
+.btn-contorno {
+  background: transparent;
+  border: 1.5px solid var(--bordo-forte, #c8ccc6);
+  color: var(--verde);
+  font-weight: 650;
+}
+
+.btn-largo { min-height: 54px; font-size: 1.05rem; }

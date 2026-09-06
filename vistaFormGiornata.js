@@ -95,8 +95,11 @@
           '</div>' +
 
           '<div class="sezione pila">' +
-            '<button class="btn btn-primario btn-largo" id="btn-salva-giornata">Salva</button>' +
-            '<button class="btn btn-fantasma" data-vai="' + indietro + '">Annulla</button>' +
+            '<button class="btn btn-azione" id="btn-salva-giornata">Salva</button>' +
+            '<button class="btn btn-contorno" data-vai="' + indietro + '">Annulla</button>' +
+            (nuova ? '' :
+              '<button class="btn btn-pericolo-tenue" id="btn-elimina-dal-form" ' +
+              'style="margin-top:18px">Elimina giornata</button>') +
           '</div>');
 
         function leggiCampi() {
@@ -120,6 +123,36 @@
             document.getElementById('err-g-orario').textContent = errori.orarioRitrovo;
           }
           if (errori.stato) document.getElementById('err-g-stato').textContent = errori.stato;
+        }
+
+        var btnEliminaForm = document.getElementById('btn-elimina-dal-form');
+        if (btnEliminaForm) {
+          btnEliminaForm.addEventListener('click', function () {
+            App.core.giornata.analizzaEliminazione(g.id).then(function (a) {
+              if (!a.puoEliminare) {
+                C.toast('La giornata ha la carne registrata: si può annullare, ' +
+                  'non eliminare.', 'errore');
+                return;
+              }
+              return C.conferma({
+                titolo: 'Eliminare questa giornata?',
+                testo: 'La giornata del ' + C.formattaData(g.data) + ' verrà rimossa' +
+                  (a.perde.length
+                    ? ', insieme a ' + a.perde.join(', ') + '.'
+                    : '. È vuota, non si perde nulla.') +
+                  ' L\u2019operazione non si può annullare.',
+                conferma: 'Elimina',
+                annulla: 'Torna indietro',
+                pericolo: true
+              }).then(function (si) {
+                if (!si) return;
+                return App.core.giornata.elimina(g.id).then(function () {
+                  C.toast('Giornata eliminata.');
+                  App.ui.router.vai('#/giornate');
+                });
+              });
+            }).catch(function (e) { C.toast(e.message, 'errore'); });
+          });
         }
 
         document.getElementById('btn-salva-giornata').addEventListener('click', function () {

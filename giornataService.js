@@ -80,34 +80,66 @@
     });
   }
 
-  // Una giornata creata per errore si puo' eliminare, ma solo finche' e'
-  // vuota: nessun partecipante segnato, nessun capo, nessuna carne.
-  // Appena contiene qualcosa si annulla soltanto, per non perdere storico.
+  // Una giornata si puo' eliminare finche' non ha la carne registrata:
+  // quella tocca quote, vendite e crediti di tutta la stagione, quindi
+  // li' si annulla soltanto. Partecipanti e capi vengono rimossi insieme
+  // alla giornata, ma solo dopo una conferma che dice cosa si perde.
   function analizzaEliminazione(giornataId) {
-    return App.data.repo.leggiStore(['giornate', 'presenze', 'abbattimenti', 'lottiCarne'])
+    return App.data.repo.leggiStore(
+      ['giornate', 'presenze', 'abbattimenti', 'controlliSanitari', 'lottiCarne'])
       .then(function (d) {
         var g = d.giornate.filter(function (x) { return x.id === giornataId; })[0];
         if (!g) throw new Error('Giornata non trovata.');
-        var presenze = d.presenze.filter(function (p) { return p.giornataId === giornataId; }).length;
-        var capi = d.abbattimenti.filter(function (a) { return a.giornataId === giornataId; }).length;
-        var lotti = d.lottiCarne.filter(function (l) { return l.giornataId === giornataId; }).length;
-        var motivi = [];
-        if (presenze) motivi.push(presenze + ' partecipante/i segnato/i');
-        if (capi) motivi.push(capi + ' capo/i registrato/i');
-        if (lotti) motivi.push('la carne della battuta');
-        return { giornata: g, puoEliminare: motivi.length === 0, motivi: motivi };
+
+        var presenze = d.presenze.filter(function (p) { return p.giornataId === giornataId; });
+        var capi = d.abbattimenti.filter(function (a) { return a.giornataId === giornataId; });
+        var idCapi = {};
+        capi.forEach(function (a) { idCapi[a.id] = true; });
+        var controlli = d.controlliSanitari.filter(function (c) {
+          return idCapi[c.abbattimentoId];
+        });
+        var lotto = d.lottiCarne.filter(function (l) { return l.giornataId === giornataId; })[0];
+
+        var perde = [];
+        if (presenze.length) {
+          perde.push(presenze.length + (presenze.length === 1
+            ? ' partecipante segnato' : ' partecipanti segnati'));
+        }
+        if (capi.length) {
+          perde.push(capi.length + (capi.length === 1 ? ' capo' : ' capi'));
+        }
+        if (controlli.length) {
+          perde.push(controlli.length + (controlli.length === 1
+            ? ' controllo sanitario' : ' controlli sanitari'));
+        }
+
+        return {
+          giornata: g,
+          puoEliminare: !lotto,
+          bloccoCarne: !!lotto,
+          perde: perde,
+          presenze: presenze,
+          capi: capi,
+          controlli: controlli
+        };
       });
   }
 
   function elimina(giornataId) {
     return analizzaEliminazione(giornataId).then(function (a) {
       if (!a.puoEliminare) {
-        throw new Error('La giornata contiene ' + a.motivi.join(' e ') +
-          ': si può annullare, non eliminare.');
+        throw new Error('La giornata ha la carne registrata: si può annullare, ' +
+          'non eliminare. Rimuovi prima la carne della battuta.');
       }
-      return App.data.repo.scrivi(['giornate'], function (t) {
-        t.elimina('giornate', giornataId);
-      }).then(function () { return true; });
+      // Figli prima del genitore, in una sola transazione.
+      return App.data.repo.scrivi(
+        ['controlliSanitari', 'abbattimenti', 'presenze', 'giornate'],
+        function (t) {
+          a.controlli.forEach(function (c) { t.elimina('controlliSanitari', c.id); });
+          a.capi.forEach(function (x) { t.elimina('abbattimenti', x.id); });
+          a.presenze.forEach(function (p) { t.elimina('presenze', p.id); });
+          t.elimina('giornate', giornataId);
+        }).then(function () { return true; });
     });
   }
 

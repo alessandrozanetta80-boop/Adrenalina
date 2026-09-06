@@ -32,7 +32,7 @@
         App.core.giornata.analizzaEliminazione(params.id)
       ]).then(function (r) {
         return { dati: dati, capi: r[0], partecipanti: r[1], carne: r[2],
-          eliminabile: r[3].puoEliminare };
+          eliminazione: r[3] };
       });
     }).then(function (pacchetto) {
       var dati = pacchetto.dati;
@@ -187,14 +187,14 @@
         '<div class="sezione pila">' +
           '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
             '/modifica">Modifica giornata</button>' +
-          (pacchetto.eliminabile
+          (pacchetto.eliminazione.puoEliminare
             ? '<button class="btn btn-pericolo-tenue" id="btn-elimina-giornata">' +
               'Elimina giornata</button>'
             : '') +
         '</div>' +
-        (pacchetto.eliminabile
-          ? '<p class="nota-piede">La giornata è ancora vuota, quindi si può ' +
-            'eliminare. Appena avrà partecipanti o capi si potrà solo annullare.</p>'
+        (pacchetto.eliminazione.bloccoCarne
+          ? '<p class="nota-piede">Questa giornata ha la carne registrata: ' +
+            'si può annullare, non eliminare.</p>'
           : '') +
 
         (dellaStagioneAttiva ? '' :
@@ -203,10 +203,14 @@
       var btnElimina = document.getElementById('btn-elimina-giornata');
       if (btnElimina) {
         btnElimina.addEventListener('click', function () {
+          var perde = pacchetto.eliminazione.perde;
           C.conferma({
             titolo: 'Eliminare questa giornata?',
-            testo: 'La giornata del ' + C.formattaData(g.data) +
-              ' verrà rimossa. È ancora vuota, quindi non si perde nulla.',
+            testo: 'La giornata del ' + C.formattaData(g.data) + ' verrà rimossa' +
+              (perde.length
+                ? ', insieme a ' + perde.join(', ') + '.'
+                : '. È vuota, non si perde nulla.') +
+              ' L\u2019operazione non si può annullare.',
             conferma: 'Elimina',
             annulla: 'Torna indietro',
             pericolo: true
