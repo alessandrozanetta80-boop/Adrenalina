@@ -46,10 +46,15 @@
   }
 
   function avvia() {
-    App.seed.datiDemo.inizializzaSeNecessario()
+    // L'accesso si prepara per primo: se e' richiesto, il router mostra
+    // la schermata di login invece dei dati.
+    App.core.accesso.avvia()
+      .then(function () { return App.seed.datiDemo.inizializzaSeNecessario(); })
       .then(function () {
         App.ui.router.avvia();
         controllaVersione();
+        // Entrare o uscire cambia cosa si puo' vedere: si ridisegna.
+        App.core.accesso.suCambio(function () { App.ui.router.disegna(); });
       })
       .catch(function (e) {
         if (global.console) global.console.error(e);

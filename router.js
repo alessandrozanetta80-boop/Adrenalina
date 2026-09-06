@@ -4,6 +4,7 @@
   App.ui = App.ui || {};
 
   var ROTTE = [
+    { re: /^#\/accesso$/,                    vista: 'accesso' },
     { re: /^#\/configurazione$/,             vista: 'configurazione' },
     { re: /^#\/home$/,                       vista: 'home' },
     { re: /^#\/soci$/,                       vista: 'soci' },
@@ -37,7 +38,7 @@
   }
 
   // Rotte raggiungibili anche senza nessuna squadra in archivio.
-  var ROTTE_SENZA_SQUADRA = ['configurazione', 'backup'];
+  var ROTTE_SENZA_SQUADRA = ['configurazione', 'backup', 'accesso'];
 
   // A quale scheda della barra bassa appartiene ogni vista.
   var TAB = {
@@ -47,12 +48,16 @@
     carneStagione: 'home', formRitiro: 'home',
     abbattimenti: 'capi', schedaCapo: 'capi', formCapo: 'capi', formSanitario: 'capi',
     soci: 'squadra', schedaSocio: 'squadra', formSocio: 'squadra',
-    stagioni: 'home', backup: 'home', calendarioConfig: 'giornate'
+    stagioni: 'home', backup: 'home', calendarioConfig: 'giornate',
+    accesso: ''
   };
 
   function evidenziaTab(nomeVista) {
     if (typeof document === 'undefined' || !document) return;
     var barra = document.getElementById('barra-bassa');
+    if (!barra) return;
+    // Sulla schermata di accesso non c'e' niente da navigare.
+    barra.classList.toggle('nascosta', nomeVista === 'accesso');
     if (!barra) return;
     var attivo = TAB[nomeVista] || '';
     Array.prototype.forEach.call(barra.querySelectorAll('button'), function (b) {
@@ -90,6 +95,19 @@
     if (!rotta) return vai('#/home');
 
     var params = rotta.params ? rotta.params(m) : {};
+
+    // Se l'accesso e' richiesto e nessuno ha fatto il login, si vede
+    // solo la schermata di accesso. Con Firebase non configurato questa
+    // condizione non scatta mai e l'app funziona come sempre.
+    var A = App.core.accesso;
+    if (A && A.attivo() && !A.autenticato()) {
+      if (rotta.vista !== 'accesso') return vai('#/accesso');
+      return disegnaRotta('accesso', {});
+    }
+    // Gia' dentro: la schermata di accesso non serve piu'.
+    if (A && A.attivo() && A.autenticato() && rotta.vista === 'accesso') {
+      return vai('#/home');
+    }
 
     // Senza squadra l'app non ha dati su cui lavorare: si va alla
     // configurazione iniziale invece di mostrare schermate vuote.

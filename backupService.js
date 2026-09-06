@@ -49,6 +49,10 @@
     // Lo schema 6 non aggiunge store: aggiunge campi ai record esistenti.
     6: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
         'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
+        'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'],
+    // Lo schema 7 non aggiunge store: rinomina un campo delle vendite.
+    7: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
+        'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
         'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne']
   };
   var MAX_ERRORI = 12;
@@ -770,7 +774,7 @@
       return backup;
     },
     // Schema 5 -> 6: compaiono diritto alla carne, compensazione, tipo di
-    // uscita, acquirente della vendita e capo non recuperato. Nessuno store
+    // uscita, chi ha venduto e capo non recuperato. Nessuno store
     // nuovo: si riempiono i campi con i valori che i vecchi dati avevano
     // implicitamente.
     5: function (backup) {
@@ -783,13 +787,23 @@
         if (!r.tipoMovimento) r.tipoMovimento = 'RITIRO_CREDITO';
       });
       (backup.dati.venditeCarne || []).forEach(function (v) {
-        if (v.acquirente === undefined) v.acquirente = null;
+        if (v.vendutaDa === undefined) v.vendutaDa = null;
       });
       (backup.dati.abbattimenti || []).forEach(function (a) {
         if (a.recuperato === undefined) a.recuperato = true;
       });
       return backup;
     }
+  };
+
+  // Schema 6 -> 7: il campo della vendita passa da "acquirente" a
+  // "vendutaDa": non era chi compra, ma il socio che vende quella carne.
+  MIGRAZIONI[6] = function (backup) {
+    (backup.dati.venditeCarne || []).forEach(function (v) {
+      if (v.vendutaDa === undefined) v.vendutaDa = v.acquirente || null;
+      delete v.acquirente;
+    });
+    return backup;
   };
 
   function migraBackup(oggetto) {

@@ -39,6 +39,25 @@
             '</dl></div>' +
           '</div>' +
 
+          // Chi ha venduto cosa: il registro delle vendite per persona.
+          (r.venditori && r.venditori.length
+            ? '<div class="sezione">' +
+                '<h3>Chi ha venduto<span class="contatore">' +
+                  C.esc(K.formattaKg(t.vendutoGrammi)) + '</span></h3>' +
+                '<div class="lista">' + r.venditori.map(function (v) {
+                  return '<div class="voce">' +
+                    '<span class="principale">' +
+                      '<span class="titolo">' + C.esc(v.nome) + '</span>' +
+                      '<span class="sotto">' + v.vendite +
+                        (v.vendite === 1 ? ' vendita' : ' vendite') + '</span>' +
+                    '</span>' +
+                    '<span class="coda"><strong>' + C.esc(K.formattaKg(v.pesoGrammi)) +
+                      '</strong><br>' + C.esc(euro(v.ricavoCent)) + '</span>' +
+                  '</div>';
+                }).join('') + '</div>' +
+              '</div>'
+            : '') +
+
           '<div class="sezione">' +
             '<button class="btn btn-contorno" data-vai="#/carne/ritiro">' +
             'Registra ritiro carne</button>' +

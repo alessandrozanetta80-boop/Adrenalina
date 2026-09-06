@@ -144,6 +144,12 @@
                       C.esc(euro(v.prezzoCentKg)) + '/kg · ' +
                       C.esc(C.formattaData(v.data)) +
                       (v.annullata ? ' · annullata' : '') + '</span>' +
+                    // Chi ha venduto quella carne: e' il dato che serve
+                    // a leggere il registro, quindi sta in chiaro sotto.
+                    (v.vendutaDa
+                      ? '<span class="venduta-da">Venduta da <strong>' +
+                        C.esc(v.vendutaDa) + '</strong></span>'
+                      : '') +
                   '</span>' +
                   '<button class="mini" data-vendita="' + C.esc(v.id) + '">' +
                     (v.annullata ? 'Ripristina' : 'Annulla') + '</button>' +

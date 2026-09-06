@@ -57,9 +57,9 @@
             '</div>' +
             '<p class="nota-piccola">Il prezzo è quello proposto per il taglio scelto ' +
             'e resta modificabile per questa singola vendita.</p>' +
-            '<div class="campo"><label for="v-acquirente">Acquirente</label>' +
-              '<input type="text" id="v-acquirente" value="">' +
-              '<div class="aiuto">Facoltativo: a chi \u00e8 stata venduta.</div></div>' +
+            '<div class="campo"><label for="v-venduta-da">Venduta da</label>' +
+              '<input type="text" id="v-venduta-da" value="">' +
+              '<div class="aiuto">Chi ha venduto questa carne. Facoltativo.</div></div>' +
               '<div class="campo"><label for="v-note">Note</label>' +
               '<textarea id="v-note"></textarea></div>' +
           '</div>' +
@@ -98,7 +98,7 @@
             pesoGrammi: K.parseKgInGrammi(document.getElementById('v-peso').value),
             prezzoCentKg: App.core.quote.parseEuroInCent(
               document.getElementById('v-prezzo').value),
-            acquirente: document.getElementById('v-acquirente').value,
+            vendutaDa: document.getElementById('v-venduta-da').value,
               note: document.getElementById('v-note').value
           };
           var errori = App.core.carne.validaVendita(campi);

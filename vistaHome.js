@@ -158,6 +158,27 @@
           : '') +
 
         // --- amministrazione, chiaramente secondaria ---
+        // --- account, solo quando l'accesso e' attivo ---
+        (App.core.accesso.attivo() && App.core.accesso.stato().utente
+          ? '<div class="sezione">' +
+              '<h3>Account</h3>' +
+              '<div class="lista">' +
+                '<div class="voce">' +
+                  '<span class="principale">' +
+                    '<span class="titolo">' +
+                      C.esc(App.core.accesso.stato().utente.nome) + '</span>' +
+                    '<span class="sotto">' +
+                      (App.core.accesso.amministratore()
+                        ? 'Amministratore · puoi modificare i dati'
+                        : 'Socio · sola lettura') +
+                    '</span>' +
+                  '</span>' +
+                  '<button class="btn-piccolo" id="btn-esci">Esci</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          : '') +
+
         '<div class="sezione">' +
           '<h3>Amministrazione</h3>' +
           '<div class="lista">' +
@@ -187,6 +208,20 @@
 
         '<p class="nota-piede">Adrenalina v' + C.esc(App.versione.APP_VERSION) +
         ' — dati salvati solo su questo dispositivo</p>');
+
+      var btnEsci = document.getElementById('btn-esci');
+      if (btnEsci) {
+        btnEsci.addEventListener('click', function () {
+          C.conferma({
+            titolo: 'Uscire dall\u2019account?',
+            testo: 'I dati restano dove sono. Per rientrare basta accedere di nuovo.',
+            conferma: 'Esci',
+            annulla: 'Resta'
+          }).then(function (si) {
+            if (si) App.core.accesso.esci();
+          });
+        });
+      }
     });
   }
 

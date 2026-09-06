@@ -32,7 +32,7 @@
   //   capi            [tiratore, nonRecuperato]
   //   pesoCapiKg      peso totale dei capi, se annotato
   //   carneKg         carne netta divisa fra gli aventi diritto
-  //   vendutoKg       carne venduta, con eventuale acquirente
+  //   vendutoKg       carne venduta, con eventuale vendutaDa
   //   salaminiKg      carne messa da parte per i salamini
   var GIORNATE = [
     {
@@ -45,7 +45,7 @@
       capi: [['Cesare'], ['Cesare'], ['Cesare'], ['Cesare']],
       carneKg: 32,
       vendutoKg: 15,
-      acquirente: '',
+      vendutaDa: '',
       note: 'Max, Maum e Rondo in compensazione: −1,690 kg ciascuno.'
     },
     {
@@ -58,7 +58,7 @@
       capi: [['Stefano'], ['Pimy'], ['Adriano'], ['Togn']],
       carneKg: 51,
       vendutoKg: 2,
-      acquirente: 'Italo',
+      vendutaDa: 'Italo',
       note: 'Max e Togn in compensazione: −3,00 kg ciascuno.'
     },
     {
@@ -72,7 +72,7 @@
       pesoCapiKg: 98,
       carneKg: 35.7,
       vendutoKg: 4,
-      acquirente: 'Pier',
+      vendutaDa: 'Pier',
       note: 'Federico in compensazione: −1,980 kg. Un capo di Pier perso ' +
         'per difficoltà di recupero. Italo ospite, fuori dalla divisione.'
     },
@@ -87,7 +87,7 @@
       pesoCapiKg: 102,
       carneKg: 19.2,
       vendutoKg: 17.8,
-      acquirente: '',
+      vendutaDa: '',
       salaminiKg: 35.5,
       note: '35,5 kg messi in freezer per i salamini. Togn in compensazione.'
     },
@@ -326,7 +326,7 @@
           tipoTaglio: 'MEZZENA',   // il taglio non era annotato
           pesoGrammi: grammi(g.vendutoKg),
           prezzoCentKg: 1000,      // prezzo non annotato: si usa il predefinito
-          acquirente: g.acquirente || '',
+          vendutaDa: g.vendutaDa || '',
           annullata: false,
           note: 'Tipo di taglio e prezzo non annotati sul quaderno.',
           demo: true

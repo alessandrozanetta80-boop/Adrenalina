@@ -1319,3 +1319,57 @@
 @media (min-width: 800px) {
   .barra-aggiornamento { left: 50%; transform: translateX(-50%); width: min(600px, 92%); right: auto; }
 }
+
+/* --- schermata di accesso --- */
+.schermo-accesso {
+  min-height: 78vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  padding: 24px 0;
+}
+.schermo-accesso .logo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #fff;
+  margin-bottom: 8px;
+}
+.marchio-accesso {
+  font-family: "AdrenalinaDisplay", "Arial Narrow", system-ui, sans-serif;
+  font-size: clamp(2.2rem, 11vw, 3rem);
+  font-weight: 800;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: .012em;
+  line-height: .95;
+  color: var(--arancio);
+  margin: 0;
+}
+.schermo-accesso .sotto {
+  margin: 0 0 22px;
+  color: var(--testo-tenue);
+  font-size: .92rem;
+}
+.schermo-accesso .btn-azione { max-width: 340px; }
+.schermo-accesso .errore { min-height: 1.2em; }
+.nota-accesso {
+  margin-top: 22px;
+  max-width: 360px;
+  font-size: .82rem;
+  color: var(--testo-tenue);
+  line-height: 1.45;
+}
+
+/* chi ha venduto la carne: riga in evidenza sotto la vendita */
+.voce-vendita .venduta-da {
+  display: block;
+  margin-top: 3px;
+  font-size: .85rem;
+  color: var(--verde);
+}
+
+.voce .coda strong { font-variant-numeric: tabular-nums; }

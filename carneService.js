@@ -440,7 +440,7 @@
         prezzoCentKg: campi.prezzoCentKg,
         // Chi ha comprato la carne. Non cambia l'attribuzione ai soci:
         // il venduto resta ripartito fra gli aventi diritto.
-        acquirente: (campi.acquirente || '').trim() || null,
+        vendutaDa: (campi.vendutaDa || '').trim() || null,
         annullata: false,
         note: (campi.note || '').trim(),
         demo: false
@@ -743,7 +743,29 @@
           consegnatoPerMembro[m.id] || 0, compensatoPerMembro[m.id] || 0);
       });
 
-      return { totali: totali, soci: soci, obbligoGrammi: obbligo, config: config };
+      // Chi ha venduto, e quanto, nell'arco della stagione.
+      // Dato di sola lettura: non tocca quote ne' crediti.
+      var perVenditore = {};
+      d.venditeCarne.forEach(function (v) {
+        if (v.annullata) return;
+        if (!idLotti[v.lottoCarneId]) return;
+        var nome = (v.vendutaDa || '').trim();
+        if (!nome) return;
+        if (!perVenditore[nome]) {
+          perVenditore[nome] = { nome: nome, pesoGrammi: 0, ricavoCent: 0, vendite: 0 };
+        }
+        perVenditore[nome].pesoGrammi += v.pesoGrammi;
+        perVenditore[nome].ricavoCent += ricavoCent(v.pesoGrammi, v.prezzoCentKg);
+        perVenditore[nome].vendite++;
+      });
+      var venditori = Object.keys(perVenditore)
+        .map(function (k) { return perVenditore[k]; })
+        .sort(function (a, b) { return b.pesoGrammi - a.pesoGrammi; });
+
+      return {
+        totali: totali, soci: soci, obbligoGrammi: obbligo,
+        config: config, venditori: venditori
+      };
     });
   }
 
