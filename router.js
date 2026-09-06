@@ -106,18 +106,9 @@
   }
 
   // Delegazione unica per tutti i pulsanti di navigazione.
-  function collegaBarra() {
-    var barra = document.getElementById('barra-bassa');
-    if (!barra) return;
-    barra.addEventListener('click', function (ev) {
-      var b = ev.target;
-      while (b && b !== barra && !b.getAttribute('data-vai')) b = b.parentNode;
-      if (b && b.getAttribute && b.getAttribute('data-vai')) vai(b.getAttribute('data-vai'));
-    });
-  }
-
   function avvia() {
-    collegaBarra();
+    // Una sola delegazione per tutti gli elementi con data-vai, barra bassa
+    // compresa: due gestori sullo stesso tocco facevano navigare due volte.
     document.addEventListener('click', function (e) {
       var el = e.target;
       while (el && el !== document.body) {

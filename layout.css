@@ -6,7 +6,9 @@
   z-index: 10;
   background: var(--verde-scuro);
   color: #fff;
-  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px) * 0);
+  /* In standalone o su schermi con notch la barra di stato si sovrappone:
+     l'intestazione se ne tiene conto senza cambiare aspetto nel browser. */
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
   padding-left: max(14px, env(safe-area-inset-left));
   padding-right: max(14px, env(safe-area-inset-right));
 }
@@ -88,6 +90,19 @@
   border-top: 1px solid var(--bordo);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+/* Su schermi larghi la barra non corre da bordo a bordo: si allinea
+   alla colonna del contenuto. */
+@media (min-width: 800px) {
+  .barra-bassa {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: min(900px, 100%);
+    border-left: 1px solid var(--bordo);
+    border-right: 1px solid var(--bordo);
+    border-radius: 14px 14px 0 0;
+  }
+}
 .barra-bassa button {
   position: relative;
   min-height: var(--barra-bassa);
@@ -100,8 +115,9 @@
   justify-content: center;
   gap: 3px;
   color: var(--testo-tenue);
-  font-size: .72rem;
+  font-size: .8rem;
   font-weight: 600;
+  line-height: 1.1;
 }
 .barra-bassa button svg {
   width: 22px;

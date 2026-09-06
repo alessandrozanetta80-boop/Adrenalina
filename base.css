@@ -33,6 +33,17 @@
   --ombra: 0 1px 2px rgba(0,0,0,.06), 0 1px 8px rgba(0,0,0,.04);
 }
 
+/* Barlow Condensed ExtraBold Italic — SIL Open Font License 1.1.
+   Copia locale: nessuna dipendenza da servizi esterni.
+   Si usa SOLO per il wordmark Adrenalina, non per l'interfaccia. */
+@font-face {
+  font-family: "AdrenalinaDisplay";
+  src: url("adrenalina-display.woff2") format("woff2");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 html, body {
   margin: 0;
   padding: 0;
@@ -72,7 +83,15 @@ a { color: var(--verde); }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 
+/* Sulle superfici chiare il verde basta; su quelle verdi scure serve
+   un contorno chiaro, altrimenti il focus sparisce. */
 :focus-visible { outline: 3px solid var(--verde); outline-offset: 2px; }
+.intestazione :focus-visible,
+.testata-identita :focus-visible,
+.barra-alta :focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
 
 .nascosto { display: none !important; }
 .solo-lettori {

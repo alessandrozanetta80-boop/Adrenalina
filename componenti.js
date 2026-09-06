@@ -104,6 +104,70 @@
     });
   }
 
+  // Modale per chiedere un numero (kg). Stessa veste della conferma:
+  // niente prompt di sistema, che su telefono e' brutto e non validabile.
+  // Risolve con il testo inserito, oppure null se si annulla.
+  function chiediNumero(opzioni) {
+    return new Promise(function (resolve) {
+      var cont = document.getElementById('modale-contenitore');
+      var fondo = document.createElement('div');
+      fondo.className = 'modale-fondo';
+      fondo.setAttribute('role', 'dialog');
+      fondo.setAttribute('aria-modal', 'true');
+      fondo.innerHTML =
+        '<div class="modale">' +
+          '<h2>' + esc(opzioni.titolo) + '</h2>' +
+          (opzioni.testo ? '<p>' + esc(opzioni.testo) + '</p>' : '') +
+          '<div class="campo">' +
+            '<label for="modale-valore">' + esc(opzioni.etichetta || 'Valore') + '</label>' +
+            '<div class="campo-unita">' +
+              '<input type="text" inputmode="decimal" id="modale-valore" value="' +
+                esc(opzioni.valore || '') + '" autocomplete="off">' +
+              '<span class="unita">' + esc(opzioni.unita || '') + '</span>' +
+            '</div>' +
+            '<div class="errore" id="modale-errore"></div>' +
+          '</div>' +
+          '<div class="azioni">' +
+            '<button class="btn btn-primario" data-azione="si">' +
+              esc(opzioni.conferma || 'Conferma') + '</button>' +
+            '<button class="btn btn-fantasma" data-azione="no">' +
+              esc(opzioni.annulla || 'Annulla') + '</button>' +
+          '</div>' +
+        '</div>';
+
+      function chiudi(valore) {
+        if (fondo.parentNode) fondo.parentNode.removeChild(fondo);
+        document.removeEventListener('keydown', suTasto);
+        resolve(valore);
+      }
+      function suTasto(e) {
+        if (e.key === 'Escape') chiudi(null);
+        if (e.key === 'Enter') tentaConferma();
+      }
+      function tentaConferma() {
+        var campo = fondo.querySelector('#modale-valore');
+        var errore = fondo.querySelector('#modale-errore');
+        var messaggio = opzioni.valida ? opzioni.valida(campo.value) : null;
+        if (messaggio) {
+          errore.textContent = messaggio;
+          campo.focus();
+          return;
+        }
+        chiudi(campo.value);
+      }
+
+      fondo.addEventListener('click', function (e) {
+        var az = e.target.getAttribute && e.target.getAttribute('data-azione');
+        if (az === 'si') tentaConferma();
+        else if (az === 'no' || e.target === fondo) chiudi(null);
+      });
+      document.addEventListener('keydown', suTasto);
+      cont.appendChild(fondo);
+      var campo = fondo.querySelector('#modale-valore');
+      if (campo) { campo.focus(); campo.select(); }
+    });
+  }
+
   function intestazione(opzioni) {
     if (typeof document === 'undefined' || !document) return;
     var testa = document.getElementById('intestazione');
@@ -152,6 +216,7 @@
     nomeCompleto: nomeCompleto,
     toast: toast,
     conferma: conferma,
+    chiediNumero: chiediNumero,
     intestazione: intestazione,
     monta: monta,
     erroreSchermo: erroreSchermo

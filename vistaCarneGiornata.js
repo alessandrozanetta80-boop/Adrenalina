@@ -245,34 +245,64 @@
       });
 
       document.getElementById('btn-salamini').addEventListener('click', function () {
-        var valore = global.prompt
-          ? global.prompt('Quanti kg metti da parte per i salamini?', '')
-          : null;
-        if (valore === null || valore === '') return;
-        var grammi = K.parseKgInGrammi(valore);
-        App.core.carne.registraUscita({
-          lottoCarneId: r.lotto.id,
-          tipoMovimento: 'SALAMINI',
-          data: App.core.calendario.oggi(),
-          pesoGrammi: grammi,
-          note: ''
-        }).then(function () {
-          C.toast('Carne messa da parte per i salamini.');
-          render(params2);
+        C.chiediNumero({
+          titolo: 'Carne per i salamini',
+          testo: 'Esce dal lotto senza passare dalla divisione fra i partecipanti.',
+          etichetta: 'Quantità da mettere da parte',
+          unita: 'kg',
+          valore: '',
+          conferma: 'Metti da parte',
+          valida: function (v) {
+            var g = K.parseKgInGrammi(v);
+            if (g === null) return 'Scrivi una quantità, per esempio 12,4.';
+            if (g <= 0) return 'La quantità deve essere maggiore di zero.';
+            if (g > r.residuoGrammi) {
+              return 'Nel lotto restano ' + K.formattaKg(r.residuoGrammi) + '.';
+            }
+            return null;
+          }
+        }).then(function (valore) {
+          if (valore === null) return;
+          return App.core.carne.registraUscita({
+            lottoCarneId: r.lotto.id,
+            tipoMovimento: 'SALAMINI',
+            data: App.core.calendario.oggi(),
+            pesoGrammi: K.parseKgInGrammi(valore),
+            note: ''
+          }).then(function () {
+            C.toast('Carne messa da parte per i salamini.');
+            render(params2);
+          });
         }).catch(function (e) { C.toast(e.message, 'errore'); });
       });
 
       document.getElementById('btn-modifica-peso').addEventListener('click', function () {
-        var attuale = K.kgPerInput(r.disponibileGrammi);
-        var valore = global.prompt
-          ? global.prompt('Carne netta disponibile in kg', attuale)
-          : null;
-        if (valore === null) return;
-        var grammi = K.parseKgInGrammi(valore);
-        if (grammi === null) { C.toast('Peso non valido.', 'errore'); return; }
-        App.core.carne.aggiornaPeso(r.lotto.id, grammi).then(function () {
-          C.toast('Carne netta aggiornata.');
-          render(params2);
+        var minimo = r.vendutoGrammi + r.usciteGrammi;
+        C.chiediNumero({
+          titolo: 'Correggi la carne netta',
+          testo: 'Le quote dei partecipanti vengono ricalcolate sugli stessi ' +
+            'nomi registrati quel giorno.',
+          etichetta: 'Carne netta disponibile',
+          unita: 'kg',
+          valore: K.kgPerInput(r.disponibileGrammi),
+          conferma: 'Salva',
+          valida: function (v) {
+            var g = K.parseKgInGrammi(v);
+            if (g === null) return 'Scrivi una quantità, per esempio 39,7.';
+            if (g <= 0) return 'La quantità deve essere maggiore di zero.';
+            if (g < minimo) {
+              return 'Sono già usciti ' + K.formattaKg(minimo) +
+                ': non può scendere sotto.';
+            }
+            return null;
+          }
+        }).then(function (valore) {
+          if (valore === null) return;
+          return App.core.carne.aggiornaPeso(r.lotto.id, K.parseKgInGrammi(valore))
+            .then(function () {
+              C.toast('Carne netta aggiornata.');
+              render(params2);
+            });
         }).catch(function (e) { C.toast(e.message, 'errore'); });
       });
     }
