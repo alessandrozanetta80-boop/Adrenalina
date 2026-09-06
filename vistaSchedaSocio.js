@@ -119,6 +119,25 @@
               '<p class="nota-piccola">Il credito è la carne già venduta per conto del ' +
               'socio: resta a sua disposizione anche dopo aver assolto l\u2019obbligo.</p>' +
             '</div>' +
+            // Il debito e' il conto opposto: carne ricevuta senza esserci.
+            (c.consegnatoSenzaDirittoGrammi
+              ? '<div class="card avviso-carne" style="margin-top:10px">' +
+                  '<p class="sotto-titolo">Compensazione</p>' +
+                  '<dl class="dettaglio">' +
+                    riga('Ricevuta senza esserci',
+                      C.esc(K.formattaKg(c.consegnatoSenzaDirittoGrammi))) +
+                    riga('Già compensata', C.esc(K.formattaKg(c.compensatoGrammi))) +
+                    riga('Debito residuo', '<strong>' +
+                      C.esc(K.formattaKg(c.debitoCarneGrammi)) + '</strong>') +
+                  '</dl>' +
+                  '<p class="nota-piccola">' +
+                  (c.inCompensazione
+                    ? 'Finché il debito non è azzerato il socio resta fuori dalla ' +
+                      'divisione, e la quota che gli sarebbe spettata lo riduce.'
+                    : 'Debito estinto: il socio rientra nella divisione.') +
+                  '</p>' +
+                '</div>'
+              : '') +
           '</div>';
         })() +
 

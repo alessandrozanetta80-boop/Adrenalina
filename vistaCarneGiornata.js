@@ -174,7 +174,12 @@
           '<div class="card"><dl class="dettaglio">' +
             riga('Disponibile', C.esc(K.formattaKg(r.disponibileGrammi))) +
             riga('Venduto', C.esc(K.formattaKg(r.vendutoGrammi))) +
-            riga('Ritirato', C.esc(K.formattaKg(r.ritiratoGrammi))) +
+            riga('Ritirato a credito', C.esc(K.formattaKg(r.ritiratoGrammi))) +
+            (r.salaminiGrammi
+              ? riga('Salamini', C.esc(K.formattaKg(r.salaminiGrammi))) : '') +
+            (r.consegnatoGrammi
+              ? riga('Consegnato senza diritto',
+                  C.esc(K.formattaKg(r.consegnatoGrammi))) : '') +
             riga('Residuo', '<strong>' + C.esc(K.formattaKg(r.residuoGrammi)) + '</strong>') +
             riga('Ricavo', '<strong>' + C.esc(euro(r.ricavoTotaleCent)) + '</strong>') +
             riga('Credito maturato', C.esc(K.formattaKg(creditoPerPersona)) + ' a testa') +
@@ -184,16 +189,34 @@
         '</div>' +
 
         '<div class="sezione"><h3>Ripartizione</h3>' +
+          '<p class="nota-piccola">' + r.numeroAventiDiritto + ' quote su ' +
+            r.numeroPartecipanti + ' presenti.</p>' +
           '<div class="lista">' + r.partecipanti.map(function (p) {
-            return '<div class="voce"><span class="principale">' +
+            var nota;
+            if (p.inCompensazione) {
+              nota = 'in compensazione · scala ' +
+                C.esc(K.formattaKg(p.quotaCompensataGrammi));
+            } else if (!p.haDiritto) {
+              nota = 'fuori dalla divisione';
+            } else {
+              nota = C.esc(K.formattaKg(p.quotaSpettanteGrammi)) +
+                ' · venduto ' + C.esc(K.formattaKg(p.vendutoAttribuitoGrammi));
+            }
+            return '<div class="voce' +
+              (p.inCompensazione || !p.haDiritto ? ' senza-diritto' : '') +
+              '"><span class="principale">' +
               '<span class="titolo">' + C.esc(C.nomeCompleto(p.membro)) + '</span>' +
-              '<span class="sotto">quota ' + C.esc(K.formattaKg(p.quotaSpettanteGrammi)) +
-                ' · venduto ' + C.esc(K.formattaKg(p.vendutoAttribuitoGrammi)) + '</span>' +
-            '</span></div>';
+              '<span class="sotto">' + nota + '</span>' +
+            '</span>' +
+            '<button class="btn-piccolo" data-diritto="' + C.esc(p.membro.id) + '">' +
+              (p.haDiritto ? 'Escludi' : 'Includi') + '</button>' +
+            '</div>';
           }).join('') + '</div>' +
         '</div>' +
 
         '<div class="sezione pila">' +
+          '<button class="btn btn-contorno" id="btn-salamini">' +
+            'Metti da parte per i salamini</button>' +
           '<button class="btn btn-contorno" id="btn-modifica-peso">Correggi carne netta</button>' +
         '</div>');
 
@@ -207,6 +230,36 @@
             render(params2);
           }).catch(function (e) { C.toast(e.message, 'errore'); });
         });
+      });
+
+      // includi / escludi dalla divisione (ospiti, casi particolari)
+      Array.prototype.forEach.call(document.querySelectorAll('[data-diritto]'), function (b) {
+        b.addEventListener('click', function () {
+          var id = b.getAttribute('data-diritto');
+          var p = r.partecipanti.filter(function (x) { return x.membro.id === id; })[0];
+          App.core.carne.impostaDiritto(r.lotto.id, id, !p.haDiritto).then(function () {
+            C.toast(p.haDiritto ? 'Escluso dalla divisione.' : 'Incluso nella divisione.');
+            render(params2);
+          }).catch(function (e) { C.toast(e.message, 'errore'); });
+        });
+      });
+
+      document.getElementById('btn-salamini').addEventListener('click', function () {
+        var valore = global.prompt
+          ? global.prompt('Quanti kg metti da parte per i salamini?', '')
+          : null;
+        if (valore === null || valore === '') return;
+        var grammi = K.parseKgInGrammi(valore);
+        App.core.carne.registraUscita({
+          lottoCarneId: r.lotto.id,
+          tipoMovimento: 'SALAMINI',
+          data: App.core.calendario.oggi(),
+          pesoGrammi: grammi,
+          note: ''
+        }).then(function () {
+          C.toast('Carne messa da parte per i salamini.');
+          render(params2);
+        }).catch(function (e) { C.toast(e.message, 'errore'); });
       });
 
       document.getElementById('btn-modifica-peso').addEventListener('click', function () {

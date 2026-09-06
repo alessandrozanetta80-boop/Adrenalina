@@ -89,6 +89,13 @@
   // --- Fase 5: carne ---
   // Prezzi iniziali in centesimi al chilo. Sono solo il valore proposto:
   // ogni vendita salva il prezzo davvero applicato in quel momento.
+  // Uscite fisiche di carne da un lotto. Tutte scalano il residuo.
+  var TIPI_MOVIMENTO_CARNE = [
+    { codice: 'RITIRO_CREDITO',        etichetta: 'Ritiro a credito',   richiedeSocio: true },
+    { codice: 'CONSEGNA_SENZA_DIRITTO', etichetta: 'Consegna senza diritto', richiedeSocio: true },
+    { codice: 'SALAMINI',              etichetta: 'Messa da parte per salamini', richiedeSocio: false }
+  ];
+
   var TIPI_TAGLIO = [
     { codice: 'MEZZENA',    etichetta: 'Mezzena',    prezzoCentKg: 1000 },
     { codice: 'MACINATA',   etichetta: 'Macinata',   prezzoCentKg: 1200 },
@@ -123,6 +130,15 @@
     SESSI: SESSI,
     GIORNI_SETTIMANA: GIORNI_SETTIMANA,
     TIPI_TAGLIO: TIPI_TAGLIO,
+    TIPI_MOVIMENTO_CARNE: TIPI_MOVIMENTO_CARNE,
+    etichettaMovimentoCarne: function (c) { return etichettaDa(TIPI_MOVIMENTO_CARNE, c); },
+    movimentoCarneValido: function (c) {
+      return TIPI_MOVIMENTO_CARNE.some(function (t) { return t.codice === c; });
+    },
+    movimentoRichiedeSocio: function (c) {
+      var t = TIPI_MOVIMENTO_CARNE.filter(function (x) { return x.codice === c; })[0];
+      return t ? t.richiedeSocio : false;
+    },
     OBBLIGO_VENDITA_GRAMMI_PREDEFINITO: 20000,
     CALENDARIO_NOME_PREDEFINITO: 'CA VCO1 — Cinghiale in battuta',
     etichettaGiorno: function (c) { return etichettaDa(GIORNI_SETTIMANA, c); },

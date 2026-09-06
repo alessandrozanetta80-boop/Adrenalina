@@ -13,7 +13,9 @@
         C.erroreSchermo('Questa giornata non ha ancora una carne registrata.');
         return;
       }
-      var g = r.giornata;
+      // La giornata potrebbe non essere leggibile in casi limite: non e' un
+      // motivo per rompere la schermata.
+      var g = r.giornata || { id: params.id, data: null, zona: null };
       var indietro = '#/giornata/' + params.id + '/carne';
 
       return App.core.carne.configPerStagione(r.lotto.stagioneId).then(function (config) {
@@ -55,7 +57,10 @@
             '</div>' +
             '<p class="nota-piccola">Il prezzo è quello proposto per il taglio scelto ' +
             'e resta modificabile per questa singola vendita.</p>' +
-            '<div class="campo"><label for="v-note">Note</label>' +
+            '<div class="campo"><label for="v-acquirente">Acquirente</label>' +
+              '<input type="text" id="v-acquirente" value="">' +
+              '<div class="aiuto">Facoltativo: a chi \u00e8 stata venduta.</div></div>' +
+              '<div class="campo"><label for="v-note">Note</label>' +
               '<textarea id="v-note"></textarea></div>' +
           '</div>' +
           '<div class="sezione pila">' +
@@ -93,7 +98,8 @@
             pesoGrammi: K.parseKgInGrammi(document.getElementById('v-peso').value),
             prezzoCentKg: App.core.quote.parseEuroInCent(
               document.getElementById('v-prezzo').value),
-            note: document.getElementById('v-note').value
+            acquirente: document.getElementById('v-acquirente').value,
+              note: document.getElementById('v-note').value
           };
           var errori = App.core.carne.validaVendita(campi);
           if (Object.keys(errori).length) {

@@ -69,6 +69,9 @@
           riga('Sesso', C.esc(App.costanti.etichettaSesso(a.sesso))) +
           riga('Peso', C.esc(K.formattaKg(a.pesoGrammi))) +
           riga('Classe di età', C.esc(App.costanti.etichettaClasseEta(a.classeEta))) +
+          riga('Recupero', a.recuperato === false
+            ? '<span class="rosso">Non recuperato</span>'
+            : 'Recuperato') +
           riga('Cane / Muta', a.caneMuta
             ? C.esc(a.caneMuta) : '<span class="tenue">—</span>') +
           riga('Stato', a.annullato

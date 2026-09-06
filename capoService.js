@@ -153,6 +153,8 @@
       pesoGrammi: Math.round(campi.pesoGrammi),
       classeEta: campi.classeEta,
       caneMuta: testoPulito(campi.caneMuta) || null,
+      // Capo abbattuto ma non recuperato: conta fra i capi, ma non porta carne.
+      recuperato: campi.recuperato === false ? false : true,
       note: testoPulito(campi.note) || ''
     };
   }

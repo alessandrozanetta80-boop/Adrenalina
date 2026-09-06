@@ -343,7 +343,9 @@
     }
 
     return {
-      squadra: squadra, stagione: stagione, membri: membri,
+      squadra: squadra,
+      stagioni: [stagione],
+      stagione: stagione, membri: membri,
       iscrizioni: iscrizioni, giornate: giornate, presenze: presenze,
       abbattimenti: abbattimenti, controlliSanitari: controlliSanitari,
       calendariBattuta: calendariBattuta, configCarne: configCarne,
@@ -360,7 +362,7 @@
        'configCarne', 'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'],
       function (t) {
       t.put('squadre', d.squadra);
-      t.put('stagioni', d.stagione);
+      (d.stagioni || [d.stagione]).forEach(function (st) { t.put('stagioni', st); });
       d.membri.forEach(function (m) { t.put('membri', m); });
       d.iscrizioni.forEach(function (i) { t.put('iscrizioni', i); });
       d.giornate.forEach(function (g) { t.put('giornate', g); });

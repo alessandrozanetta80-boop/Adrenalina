@@ -49,6 +49,7 @@
   }
 
   function toast(messaggio, tipo) {
+    if (typeof document === 'undefined' || !document) return;
     var cont = document.getElementById('toast-contenitore');
     if (!cont) return;
     var d = document.createElement('div');

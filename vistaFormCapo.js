@@ -124,6 +124,12 @@
                 (capo ? C.esc(K.kgPerInput(capo.pesoGrammi)) : '') + '">' +
                 '<div class="aiuto">Per esempio 85,5.</div>' +
                 '<div class="errore" id="err-a-peso"></div></div>' +
+              '<div class="campo">' +
+                '<label class="spunta spunta-riga"><input type="checkbox" id="a-recuperato"' +
+                (capo && capo.recuperato === false ? '' : ' checked') + '> Capo recuperato</label>' +
+                '<div class="aiuto">Toglila se il capo \u00e8 stato abbattuto ma non ritrovato: ' +
+                'resta nel registro e non porta carne.</div>' +
+              '</div>' +
               '<div class="campo"><label for="a-cane">Cane / Muta</label>' +
                 '<input type="text" id="a-cane" value="' +
                 (capo ? C.esc(capo.caneMuta || '') : '') + '">' +
@@ -144,6 +150,7 @@
               sesso: document.getElementById('a-sesso').value,
               classeEta: document.getElementById('a-classe').value,
               pesoGrammi: K.parseKgInGrammi(document.getElementById('a-peso').value),
+              recuperato: document.getElementById('a-recuperato').checked,
               caneMuta: document.getElementById('a-cane').value,
               note: document.getElementById('a-note').value
             };

@@ -45,6 +45,10 @@
         'abbattimenti', 'controlliSanitari'],
     5: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
         'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
+        'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne'],
+    // Lo schema 6 non aggiunge store: aggiunge campi ai record esistenti.
+    6: ['meta', 'squadre', 'stagioni', 'membri', 'iscrizioni', 'giornate', 'presenze',
+        'abbattimenti', 'controlliSanitari', 'calendariBattuta', 'configCarne',
         'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne']
   };
   var MAX_ERRORI = 12;
@@ -394,6 +398,10 @@
       if (typeof a.annullato !== 'boolean') {
         segnala('Abbattimento ' + etichetta(a, i) + ': il campo annullato deve essere vero o falso.');
       }
+      if (a.recuperato !== undefined && typeof a.recuperato !== 'boolean') {
+        segnala('Abbattimento ' + etichetta(a, i) +
+          ': il campo recuperato deve essere vero o falso.');
+      }
       if (a.caneMuta !== null && a.caneMuta !== undefined && typeof a.caneMuta !== 'string') {
         segnala('Abbattimento ' + etichetta(a, i) + ': cane/muta deve essere testo.');
       }
@@ -590,14 +598,35 @@
         segnala('Quota carne ' + etichetta(q, i) + ': quota non valida.');
         return;
       }
+      if (q.haDiritto !== undefined && typeof q.haDiritto !== 'boolean') {
+        segnala('Quota carne ' + etichetta(q, i) + ': il campo haDiritto deve essere vero o falso.');
+      }
+      if (q.inCompensazione !== undefined && typeof q.inCompensazione !== 'boolean') {
+        segnala('Quota carne ' + etichetta(q, i) +
+          ': il campo inCompensazione deve essere vero o falso.');
+      }
+      if (q.quotaCompensataGrammi !== undefined &&
+          !interoNonNegativo(q.quotaCompensataGrammi)) {
+        segnala('Quota carne ' + etichetta(q, i) + ': quota compensata non valida.');
+      }
+      // Chi non ha diritto o è in compensazione non riceve carne.
+      if ((q.haDiritto === false || q.inCompensazione === true) &&
+          q.quotaSpettanteGrammi !== 0) {
+        segnala('Quota carne ' + etichetta(q, i) +
+          ': chi non ha diritto o è in compensazione non può avere una quota.');
+      }
       sommaQuote[q.lottoCarneId] = (sommaQuote[q.lottoCarneId] || 0) + q.quotaSpettanteGrammi;
     });
     Object.keys(lottiPerId).forEach(function (idL) {
       var l = lottiPerId[idL];
       var somma = sommaQuote[idL] || 0;
-      if (somma !== l.pesoNettoDisponibileGrammi) {
+      // Le quote coprono la carne effettivamente divisa fra i partecipanti:
+      // quella venduta o messa da parte per i salamini esce dal lotto senza
+      // passare dalla divisione, quindi la somma puo' essere inferiore.
+      // Non puo' invece superare la carne disponibile.
+      if (somma > l.pesoNettoDisponibileGrammi) {
         segnala('Lotto carne "' + idL + '": la somma delle quote (' + somma +
-          ' g) non corrisponde al peso disponibile (' + l.pesoNettoDisponibileGrammi + ' g).');
+          ' g) supera il peso disponibile (' + l.pesoNettoDisponibileGrammi + ' g).');
       }
     });
 
@@ -644,8 +673,20 @@
       if (!lotto) {
         segnala('Ritiro ' + etichetta(r, i) + ' punta a un lotto inesistente.'); return;
       }
-      if (!membriPerId[r.membroId]) {
-        segnala('Ritiro ' + etichetta(r, i) + ' punta a un socio inesistente.'); return;
+      var tipo = r.tipoMovimento || 'RITIRO_CREDITO';
+      if (!App.costanti.movimentoCarneValido(tipo)) {
+        segnala('Uscita carne ' + etichetta(r, i) + ': tipo di movimento non riconosciuto.');
+        return;
+      }
+      if (App.costanti.movimentoRichiedeSocio(tipo)) {
+        if (!membriPerId[r.membroId]) {
+          segnala('Uscita carne ' + etichetta(r, i) + ' punta a un socio inesistente.'); return;
+        }
+      } else if (r.membroId !== null && r.membroId !== undefined) {
+        segnala('Uscita carne ' + etichetta(r, i) +
+          ': un movimento "' + App.costanti.etichettaMovimentoCarne(tipo) +
+          '" non deve essere intestato a un socio.');
+        return;
       }
       if (!idValido(r.stagioneId) || !stagioniPerId[r.stagioneId]) {
         segnala('Ritiro ' + etichetta(r, i) + ' punta a una stagione inesistente.'); return;
@@ -725,6 +766,27 @@
       ['calendariBattuta', 'configCarne', 'lottiCarne', 'quoteCarne',
        'venditeCarne', 'ritiriCarne'].forEach(function (n) {
         backup.dati[n] = backup.dati[n] || [];
+      });
+      return backup;
+    },
+    // Schema 5 -> 6: compaiono diritto alla carne, compensazione, tipo di
+    // uscita, acquirente della vendita e capo non recuperato. Nessuno store
+    // nuovo: si riempiono i campi con i valori che i vecchi dati avevano
+    // implicitamente.
+    5: function (backup) {
+      (backup.dati.quoteCarne || []).forEach(function (q) {
+        if (q.haDiritto === undefined) q.haDiritto = true;
+        if (q.inCompensazione === undefined) q.inCompensazione = false;
+        if (q.quotaCompensataGrammi === undefined) q.quotaCompensataGrammi = 0;
+      });
+      (backup.dati.ritiriCarne || []).forEach(function (r) {
+        if (!r.tipoMovimento) r.tipoMovimento = 'RITIRO_CREDITO';
+      });
+      (backup.dati.venditeCarne || []).forEach(function (v) {
+        if (v.acquirente === undefined) v.acquirente = null;
+      });
+      (backup.dati.abbattimenti || []).forEach(function (a) {
+        if (a.recuperato === undefined) a.recuperato = true;
       });
       return backup;
     }

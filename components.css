@@ -1260,3 +1260,36 @@
 .voce-data.passata .titolo { color: var(--testo-tenue); font-weight: 650; }
 .stato.da-compilare { color: var(--verde); }
 .stato.non-registrata { color: var(--bordo-forte, #c8ccc6); font-weight: 600; }
+
+/* --- carne: dettagli del Blocco 6 --- */
+.voce.senza-diritto { opacity: .72; }
+.voce.senza-diritto .titolo { font-weight: 600; }
+.btn-piccolo {
+  flex: 0 0 auto;
+  min-height: var(--tocco);
+  padding: 0 12px;
+  border: 1px solid var(--bordo-forte, #c8ccc6);
+  border-radius: 10px;
+  background: var(--superficie);
+  font-size: .8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.avviso-carne { border-left: 4px solid var(--avviso); }
+.spunta-riga { display: flex; align-items: center; gap: 10px; min-height: var(--tocco); }
+
+/* riga della ripartizione carne: nome e dato su una riga sola */
+.lista .voce .sotto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-piccolo {
+  flex: 0 0 auto;
+  min-height: var(--tocco);
+  padding: 0 12px;
+  border: 1px solid var(--bordo-forte, #c8ccc6);
+  border-radius: 10px;
+  background: var(--superficie);
+  font-size: .82rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.voce.senza-diritto .titolo { color: var(--testo-tenue); }

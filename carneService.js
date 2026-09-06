@@ -135,6 +135,83 @@
     });
   }
 
+  // Debito carne di un socio nella stagione, PRIMA di considerare un
+  // eventuale nuovo lotto. Dato derivato, mai memorizzato:
+  //   consegne ricevute senza diritto - compensazioni gia' applicate.
+  function debitiStagione(stagioneId, escludiLottoId) {
+    return App.data.repo.leggiStore(['lottiCarne', 'quoteCarne', 'ritiriCarne'])
+      .then(function (d) {
+        var idLotti = {};
+        d.lottiCarne.forEach(function (l) {
+          if (l.stagioneId === stagioneId && l.id !== escludiLottoId) idLotti[l.id] = true;
+        });
+        var debiti = {};
+        d.ritiriCarne.forEach(function (r) {
+          if (r.annullato) return;
+          if (r.tipoMovimento !== 'CONSEGNA_SENZA_DIRITTO') return;
+          if (r.stagioneId !== stagioneId) return;
+          debiti[r.membroId] = (debiti[r.membroId] || 0) + r.pesoGrammi;
+        });
+        d.quoteCarne.forEach(function (q) {
+          if (!idLotti[q.lottoCarneId]) return;
+          var comp = q.quotaCompensataGrammi || 0;
+          if (!comp) return;
+          debiti[q.membroId] = (debiti[q.membroId] || 0) - comp;
+        });
+        Object.keys(debiti).forEach(function (k) {
+          if (debiti[k] < 0) debiti[k] = 0;
+        });
+        return debiti;
+      });
+  }
+
+  // Chi ha diritto alla carne in quella stagione: gli ospiti no,
+  // salvo deroga registrata sulla singola giornata.
+  function dirittiStagione(stagioneId) {
+    return App.data.iscrizioni.perStagione(stagioneId).then(function (iscrizioni) {
+      var out = {};
+      iscrizioni.forEach(function (i) { out[i.membroId] = !i.ospite; });
+      return out;
+    });
+  }
+
+  // Costruisce le quote di uno snapshot.
+  //   - chi non ha diritto (ospite) resta a zero;
+  //   - chi e' in compensazione resta a zero ma si scala il PRO CAPITE,
+  //     cioe' totale diviso i presenti, non diviso gli aventi diritto;
+  //   - la carne si divide fra gli aventi diritto non in compensazione,
+  //     e la somma delle quote e' esattamente il peso disponibile.
+  function costruisciQuote(lottoId, presenti, totale, diritti, debiti) {
+    var proCapite = presenti.length ? Math.floor(totale / presenti.length) : 0;
+    var righe = presenti.map(function (m) {
+      var haDiritto = diritti[m.id] !== false;
+      var inCompensazione = haDiritto && (debiti[m.id] || 0) > 0;
+      return { membro: m, haDiritto: haDiritto, inCompensazione: inCompensazione };
+    });
+    var aventi = righe.filter(function (r) { return r.haDiritto && !r.inCompensazione; });
+    if (!aventi.length) {
+      throw new Error('Nessun partecipante ha diritto alla carne in questa battuta: ' +
+        'controlla ospiti e compensazioni.');
+    }
+    var parti = ripartisci(totale, aventi.length);
+    var quotaPer = {};
+    aventi.forEach(function (r, i) { quotaPer[r.membro.id] = parti[i]; });
+
+    return righe.map(function (r) {
+      return App.data.repo.timbraCreazione({
+        id: App.core.id.nuovo(App.core.id.QUOTA_CARNE),
+        lottoCarneId: lottoId,
+        membroId: r.membro.id,
+        quotaSpettanteGrammi: quotaPer[r.membro.id] || 0,
+        haDiritto: r.haDiritto,
+        inCompensazione: r.inCompensazione,
+        // quanto scala dal debito di chi e' in compensazione
+        quotaCompensataGrammi: r.inCompensazione ? Math.min(proCapite, debiti[r.membro.id]) : 0,
+        demo: false
+      });
+    });
+  }
+
   function creaLotto(giornataId, campi) {
     if (!interoPositivo(campi.pesoNettoDisponibileGrammi)) {
       var e = new Error('Peso non valido.');
@@ -163,20 +240,17 @@
           note: (campi.note || '').trim(),
           demo: false
         });
-        var parti = ripartisci(lotto.pesoNettoDisponibileGrammi, presenti.length);
-        var quote = presenti.map(function (m, i) {
-          return App.data.repo.timbraCreazione({
-            id: App.core.id.nuovo(App.core.id.QUOTA_CARNE),
-            lottoCarneId: lotto.id,
-            membroId: m.id,
-            quotaSpettanteGrammi: parti[i],
-            demo: false
+        return Promise.all([
+          dirittiStagione(giornata.stagioneId),
+          debitiStagione(giornata.stagioneId, null)
+        ]).then(function (dd) {
+          var quote = costruisciQuote(lotto.id, presenti,
+            lotto.pesoNettoDisponibileGrammi, dd[0], dd[1]);
+          return App.data.repo.scrivi(['lottiCarne', 'quoteCarne'], function (t) {
+            t.put('lottiCarne', lotto);
+            quote.forEach(function (q) { t.put('quoteCarne', q); });
+            return lotto;
           });
-        });
-        return App.data.repo.scrivi(['lottiCarne', 'quoteCarne'], function (t) {
-          t.put('lottiCarne', lotto);
-          quote.forEach(function (q) { t.put('quoteCarne', q); });
-          return lotto;
         });
       });
     });
@@ -208,14 +282,34 @@
           var membri = ordinaMembri(ordinate.map(function (q) {
             return perId[q.membroId] || { id: q.membroId, cognome: '', nome: '' };
           }));
-          var parti = ripartisci(nuovoPesoGrammi, membri.length);
+          // Diritti e compensazioni restano quelli congelati nello snapshot:
+          // cambia solo quanta carne c'e' da dividere.
+          var statoPer = {};
+          quote.forEach(function (q) {
+            statoPer[q.membroId] = {
+              haDiritto: q.haDiritto !== false,
+              inCompensazione: q.inCompensazione === true
+            };
+          });
+          var aventi = membri.filter(function (m) {
+            var st = statoPer[m.id] || {};
+            return st.haDiritto !== false && !st.inCompensazione;
+          });
+          if (!aventi.length) {
+            throw new Error('Nessun partecipante ha diritto alla carne in questa battuta.');
+          }
+          var parti = ripartisci(nuovoPesoGrammi, aventi.length);
           var perMembro = {};
-          membri.forEach(function (m, i) { perMembro[m.id] = parti[i]; });
+          aventi.forEach(function (m, i) { perMembro[m.id] = parti[i]; });
+          var proCapite = membri.length ? Math.floor(nuovoPesoGrammi / membri.length) : 0;
 
           var lotto = rl.lotto;
           lotto.pesoNettoDisponibileGrammi = nuovoPesoGrammi;
           if (note !== undefined) lotto.note = (note || '').trim();
-          quote.forEach(function (q) { q.quotaSpettanteGrammi = perMembro[q.membroId] || 0; });
+          quote.forEach(function (q) {
+            q.quotaSpettanteGrammi = perMembro[q.membroId] || 0;
+            if (q.inCompensazione === true) q.quotaCompensataGrammi = proCapite;
+          });
 
           return App.data.repo.scrivi(['lottiCarne', 'quoteCarne'], function (t) {
             t.put('lottiCarne', App.data.repo.timbraModifica(lotto));
@@ -238,21 +332,69 @@
       }
       return presentiDiGiornata(rl.lotto.giornataId).then(function (presenti) {
         if (!presenti.length) throw new Error('Nessun partecipante presente nella giornata.');
-        var parti = ripartisci(rl.lotto.pesoNettoDisponibileGrammi, presenti.length);
-        var nuove = presenti.map(function (m, i) {
-          return App.data.repo.timbraCreazione({
-            id: App.core.id.nuovo(App.core.id.QUOTA_CARNE),
-            lottoCarneId: lottoId,
-            membroId: m.id,
-            quotaSpettanteGrammi: parti[i],
-            demo: false
-          });
-        });
+        return Promise.all([
+          dirittiStagione(rl.lotto.stagioneId),
+          debitiStagione(rl.lotto.stagioneId, lottoId)
+        ]).then(function (dd) {
+        var nuove = costruisciQuote(lottoId, presenti,
+          rl.lotto.pesoNettoDisponibileGrammi, dd[0], dd[1]);
         return App.data.quoteCarne.perLotto(lottoId).then(function (vecchie) {
           return App.data.repo.scrivi(['quoteCarne'], function (t) {
             vecchie.forEach(function (q) { t.elimina('quoteCarne', q.id); });
             nuove.forEach(function (q) { t.put('quoteCarne', q); });
             return nuove;
+          });
+        });
+        });
+      });
+    });
+  }
+
+  // Deroga sul diritto alla carne di un singolo partecipante, per esempio
+  // per far entrare un ospite nella divisione. Consentita solo finche' non
+  // esistono vendite o uscite: dopo, lo storico non si tocca.
+  function impostaDiritto(lottoId, membroId, haDiritto) {
+    return riepilogoLotto(lottoId).then(function (rl) {
+      if (!rl) throw new Error('Lotto non trovato.');
+      if (rl.venditeValide.length || rl.usciteValide.length) {
+        throw new Error('Ci sono già vendite o uscite registrate: ' +
+          'il diritto alla carne non può più essere modificato.');
+      }
+      return App.data.quoteCarne.perLotto(lottoId).then(function (quote) {
+        var mia = quote.filter(function (q) { return q.membroId === membroId; })[0];
+        if (!mia) throw new Error('Il socio non fa parte di questa battuta.');
+        mia.haDiritto = !!haDiritto;
+        if (!haDiritto) mia.inCompensazione = false;
+
+        return App.data.repo.leggiStore(['membri']).then(function (d) {
+          var perId = {};
+          d.membri.forEach(function (m) { perId[m.id] = m; });
+          var membri = ordinaMembri(quote.map(function (q) {
+            return perId[q.membroId] || { id: q.membroId, nome: '', cognome: '' };
+          }));
+          var statoPer = {};
+          quote.forEach(function (q) {
+            statoPer[q.membroId] = {
+              haDiritto: q.haDiritto !== false,
+              inCompensazione: q.inCompensazione === true
+            };
+          });
+          var aventi = membri.filter(function (m) {
+            var st = statoPer[m.id];
+            return st.haDiritto && !st.inCompensazione;
+          });
+          if (!aventi.length) {
+            throw new Error('Almeno un partecipante deve avere diritto alla carne.');
+          }
+          var totale = rl.lotto.pesoNettoDisponibileGrammi;
+          var parti = ripartisci(totale, aventi.length);
+          var perMembro = {};
+          aventi.forEach(function (m, i) { perMembro[m.id] = parti[i]; });
+          quote.forEach(function (q) { q.quotaSpettanteGrammi = perMembro[q.membroId] || 0; });
+
+          return App.data.repo.scrivi(['quoteCarne'], function (t) {
+            quote.forEach(function (q) { t.put('quoteCarne', App.data.repo.timbraModifica(q)); });
+            return quote;
           });
         });
       });
@@ -296,6 +438,9 @@
         tipoTaglio: campi.tipoTaglio,
         pesoGrammi: campi.pesoGrammi,
         prezzoCentKg: campi.prezzoCentKg,
+        // Chi ha comprato la carne. Non cambia l'attribuzione ai soci:
+        // il venduto resta ripartito fra gli aventi diritto.
+        acquirente: (campi.acquirente || '').trim() || null,
         annullata: false,
         note: (campi.note || '').trim(),
         demo: false
@@ -324,9 +469,18 @@
   }
 
   // ---------- ritiri ----------
-  function registraRitiro(campi) {
+  // Uscita fisica di carne da un lotto. Tre tipi, tutti scalano il residuo:
+  //   RITIRO_CREDITO          il socio ritira carne che gli spetta gia'
+  //   CONSEGNA_SENZA_DIRITTO  carne data a chi non era presente: crea debito
+  //   SALAMINI                messa da parte per la lavorazione, nessun socio
+  function registraUscita(campi) {
+    var tipo = campi.tipoMovimento || 'RITIRO_CREDITO';
     var errori = {};
-    if (!campi.membroId) errori.membroId = 'Scegli il socio.';
+    if (!App.costanti.movimentoCarneValido(tipo)) {
+      errori.tipoMovimento = 'Tipo di movimento non valido.';
+    }
+    var serveSocio = App.costanti.movimentoRichiedeSocio(tipo);
+    if (serveSocio && !campi.membroId) errori.membroId = 'Scegli il socio.';
     if (!campi.lottoCarneId) errori.lottoCarneId = 'Scegli il lotto da cui prelevare.';
     if (!App.core.calendario.dataValida(campi.data)) errori.data = 'Data non valida.';
     if (!interoPositivo(campi.pesoGrammi)) errori.pesoGrammi = 'Peso non valido.';
@@ -336,38 +490,52 @@
 
     return App.data.lottiCarne.perId(campi.lottoCarneId).then(function (lotto) {
       if (!lotto) throw new Error('Lotto non trovato.');
-      return Promise.all([
-        riepilogoLotto(lotto.id),
-        riepilogoSocio(lotto.stagioneId, campi.membroId)
-      ]).then(function (r) {
-        var rl = r[0], rs = r[1];
-        if (campi.pesoGrammi > rs.creditoDisponibileGrammi) {
-          var e1 = new Error('Il credito disponibile del socio è ' +
-            formattaKg(rs.creditoDisponibileGrammi) + '.');
-          e1.errori = { pesoGrammi: 'Credito disponibile: ' +
-            formattaKg(rs.creditoDisponibileGrammi) + '.' };
-          throw e1;
-        }
+      return riepilogoLotto(lotto.id).then(function (rl) {
+        // Vincolo fisico: non si puo' portare via piu' carne di quanta ce n'e'.
         if (campi.pesoGrammi > rl.residuoGrammi) {
           var e2 = new Error('Nel lotto restano solo ' + formattaKg(rl.residuoGrammi) + '.');
           e2.errori = { pesoGrammi: 'Nel lotto restano ' + formattaKg(rl.residuoGrammi) + '.' };
           throw e2;
         }
-        var ritiro = App.data.repo.timbraCreazione({
-          id: App.core.id.nuovo(App.core.id.RITIRO_CARNE),
-          membroId: campi.membroId,
-          stagioneId: lotto.stagioneId,
-          lottoCarneId: lotto.id,
-          data: campi.data,
-          pesoGrammi: campi.pesoGrammi,
-          tipoMovimento: 'RITIRO_CREDITO',
-          annullato: false,
-          note: (campi.note || '').trim(),
-          demo: false
+        var prima = Promise.resolve(null);
+        // Vincolo aggiuntivo: il ritiro non puo' superare il credito.
+        if (tipo === 'RITIRO_CREDITO') {
+          prima = riepilogoSocio(lotto.stagioneId, campi.membroId).then(function (rs) {
+            if (campi.pesoGrammi > rs.creditoDisponibileGrammi) {
+              var e1 = new Error('Il credito disponibile del socio è ' +
+                formattaKg(rs.creditoDisponibileGrammi) + '.');
+              e1.errori = { pesoGrammi: 'Credito disponibile: ' +
+                formattaKg(rs.creditoDisponibileGrammi) + '.' };
+              throw e1;
+            }
+            return null;
+          });
+        }
+        return prima.then(function () {
+          var uscita = App.data.repo.timbraCreazione({
+            id: App.core.id.nuovo(App.core.id.RITIRO_CARNE),
+            membroId: serveSocio ? campi.membroId : null,
+            stagioneId: lotto.stagioneId,
+            lottoCarneId: lotto.id,
+            data: campi.data,
+            pesoGrammi: campi.pesoGrammi,
+            tipoMovimento: tipo,
+            annullato: false,
+            note: (campi.note || '').trim(),
+            demo: false
+          });
+          return App.data.ritiriCarne.salva(uscita).then(function () { return uscita; });
         });
-        return App.data.ritiriCarne.salva(ritiro).then(function () { return ritiro; });
       });
     });
+  }
+
+  // Nome storico mantenuto per compatibilita' con il resto dell'app.
+  function registraRitiro(campi) {
+    var c = {};
+    Object.keys(campi).forEach(function (k) { c[k] = campi[k]; });
+    c.tipoMovimento = c.tipoMovimento || 'RITIRO_CREDITO';
+    return registraUscita(c);
   }
 
   function impostaRitiroAnnullato(ritiroId, annullato) {
@@ -390,26 +558,53 @@
       var vendite = d.venditeCarne.filter(function (v) { return v.lottoCarneId === lottoId; });
       var ritiri = d.ritiriCarne.filter(function (r) { return r.lottoCarneId === lottoId; });
       var venditeValide = vendite.filter(function (v) { return !v.annullata; });
-      var ritiriValidi = ritiri.filter(function (r) { return !r.annullato; });
+      var usciteValide = ritiri.filter(function (r) { return !r.annullato; });
+      function diTipo(t) {
+        return usciteValide.filter(function (r) {
+          return (r.tipoMovimento || 'RITIRO_CREDITO') === t;
+        });
+      }
+      var ritiriValidi = diTipo('RITIRO_CREDITO');
+      var consegneValide = diTipo('CONSEGNA_SENZA_DIRITTO');
+      var salaminiValidi = diTipo('SALAMINI');
 
       var vendutoGrammi = 0, ricavoTotaleCent = 0;
       venditeValide.forEach(function (v) {
         vendutoGrammi += v.pesoGrammi;
         ricavoTotaleCent += ricavoCent(v.pesoGrammi, v.prezzoCentKg);
       });
-      var ritiratoGrammi = 0;
-      ritiriValidi.forEach(function (r) { ritiratoGrammi += r.pesoGrammi; });
+      function somma(elenco) {
+        var t = 0;
+        elenco.forEach(function (r) { t += r.pesoGrammi; });
+        return t;
+      }
+      var ritiratoGrammi = somma(ritiriValidi);
+      var consegnatoGrammi = somma(consegneValide);
+      var salaminiGrammi = somma(salaminiValidi);
+      var usciteGrammi = ritiratoGrammi + consegnatoGrammi + salaminiGrammi;
 
       var perId = {};
       d.membri.forEach(function (m) { perId[m.id] = m; });
       var membri = ordinaMembri(quote.map(function (q) {
         return perId[q.membroId] || { id: q.membroId, nome: '', cognome: '' };
       }));
-      // Il venduto si ripartisce sullo stesso snapshot, con lo stesso ordine.
-      var partiVendute = ripartisci(vendutoGrammi, membri.length);
+      var statoPer = {};
+      quote.forEach(function (q) {
+        statoPer[q.membroId] = {
+          haDiritto: q.haDiritto !== false,
+          inCompensazione: q.inCompensazione === true,
+          quotaCompensataGrammi: q.quotaCompensataGrammi || 0
+        };
+      });
+      // Il venduto si attribuisce solo a chi ha davvero diritto alla carne.
+      var aventi = membri.filter(function (m) {
+        var st = statoPer[m.id];
+        return st.haDiritto && !st.inCompensazione;
+      });
+      var partiVendute = ripartisci(vendutoGrammi, aventi.length);
       var quotaPerMembro = {}, vendutoPerMembro = {};
       quote.forEach(function (q) { quotaPerMembro[q.membroId] = q.quotaSpettanteGrammi; });
-      membri.forEach(function (m, i) { vendutoPerMembro[m.id] = partiVendute[i]; });
+      aventi.forEach(function (m, i) { vendutoPerMembro[m.id] = partiVendute[i]; });
 
       var giornata = d.giornate.filter(function (g) { return g.id === lotto.giornataId; })[0] || null;
 
@@ -417,24 +612,35 @@
         lotto: lotto,
         giornata: giornata,
         partecipanti: membri.map(function (m) {
+          var st = statoPer[m.id] || {};
           return {
             membro: m,
             quotaSpettanteGrammi: quotaPerMembro[m.id] || 0,
-            vendutoAttribuitoGrammi: vendutoPerMembro[m.id] || 0
+            vendutoAttribuitoGrammi: vendutoPerMembro[m.id] || 0,
+            haDiritto: st.haDiritto !== false,
+            inCompensazione: st.inCompensazione === true,
+            quotaCompensataGrammi: st.quotaCompensataGrammi || 0
           };
         }),
         numeroPartecipanti: membri.length,
+        numeroAventiDiritto: aventi.length,
         disponibileGrammi: lotto.pesoNettoDisponibileGrammi,
         vendutoGrammi: vendutoGrammi,
         ritiratoGrammi: ritiratoGrammi,
-        residuoGrammi: lotto.pesoNettoDisponibileGrammi - vendutoGrammi - ritiratoGrammi,
+        consegnatoGrammi: consegnatoGrammi,
+        salaminiGrammi: salaminiGrammi,
+        usciteGrammi: usciteGrammi,
+        residuoGrammi: lotto.pesoNettoDisponibileGrammi - vendutoGrammi - usciteGrammi,
         ricavoTotaleCent: ricavoTotaleCent,
         vendite: vendite.slice().sort(function (a, b) {
           return String(b.data).localeCompare(String(a.data));
         }),
         venditeValide: venditeValide,
         ritiri: ritiri,
-        ritiriValidi: ritiriValidi
+        ritiriValidi: ritiriValidi,
+        usciteValide: usciteValide,
+        consegneValide: consegneValide,
+        salaminiValidi: salaminiValidi
       };
     });
   }
@@ -463,9 +669,11 @@
       d.membri.forEach(function (m) { perId[m.id] = m; });
 
       var totali = {
-        disponibileGrammi: 0, vendutoGrammi: 0, ritiratoGrammi: 0, ricavoTotaleCent: 0
+        disponibileGrammi: 0, vendutoGrammi: 0, ritiratoGrammi: 0,
+        consegnatoGrammi: 0, salaminiGrammi: 0, ricavoTotaleCent: 0
       };
       var vendutoPerMembro = {}, quotaPerMembro = {}, ritiratoPerMembro = {};
+      var consegnatoPerMembro = {}, compensatoPerMembro = {};
 
       lotti.forEach(function (l) {
         totali.disponibileGrammi += l.pesoNettoDisponibileGrammi;
@@ -479,25 +687,50 @@
         });
         totali.vendutoGrammi += venduto;
 
+        // Il venduto si attribuisce solo a chi aveva diritto in quella battuta.
+        var statoPer = {};
+        quote.forEach(function (q) {
+          statoPer[q.membroId] = {
+            haDiritto: q.haDiritto !== false,
+            inCompensazione: q.inCompensazione === true
+          };
+        });
         var membri = ordinaMembri(quote.map(function (q) {
           return perId[q.membroId] || { id: q.membroId, nome: '', cognome: '' };
         }));
-        var parti = ripartisci(venduto, membri.length);
-        membri.forEach(function (m, i) {
+        var aventi = membri.filter(function (m) {
+          var st = statoPer[m.id];
+          return st.haDiritto && !st.inCompensazione;
+        });
+        var parti = ripartisci(venduto, aventi.length);
+        aventi.forEach(function (m, i) {
           vendutoPerMembro[m.id] = (vendutoPerMembro[m.id] || 0) + parti[i];
         });
         quote.forEach(function (q) {
           quotaPerMembro[q.membroId] = (quotaPerMembro[q.membroId] || 0) + q.quotaSpettanteGrammi;
+          compensatoPerMembro[q.membroId] =
+            (compensatoPerMembro[q.membroId] || 0) + (q.quotaCompensataGrammi || 0);
         });
       });
 
       d.ritiriCarne.forEach(function (r) {
         if (r.annullato || !idLotti[r.lottoCarneId]) return;
+        var tipo = r.tipoMovimento || 'RITIRO_CREDITO';
+        if (tipo === 'SALAMINI') {
+          totali.salaminiGrammi += r.pesoGrammi;
+          return;
+        }
+        if (tipo === 'CONSEGNA_SENZA_DIRITTO') {
+          totali.consegnatoGrammi += r.pesoGrammi;
+          consegnatoPerMembro[r.membroId] =
+            (consegnatoPerMembro[r.membroId] || 0) + r.pesoGrammi;
+          return;
+        }
         totali.ritiratoGrammi += r.pesoGrammi;
         ritiratoPerMembro[r.membroId] = (ritiratoPerMembro[r.membroId] || 0) + r.pesoGrammi;
       });
       totali.residuoGrammi = totali.disponibileGrammi - totali.vendutoGrammi -
-        totali.ritiratoGrammi;
+        totali.ritiratoGrammi - totali.consegnatoGrammi - totali.salaminiGrammi;
 
       var iscritti = d.iscrizioni
         .filter(function (i) { return i.stagioneId === stagioneId; })
@@ -506,14 +739,18 @@
 
       var soci = ordinaMembri(iscritti).map(function (m) {
         return calcolaSocio(m, vendutoPerMembro[m.id] || 0, quotaPerMembro[m.id] || 0,
-          ritiratoPerMembro[m.id] || 0, obbligo);
+          ritiratoPerMembro[m.id] || 0, obbligo,
+          consegnatoPerMembro[m.id] || 0, compensatoPerMembro[m.id] || 0);
       });
 
       return { totali: totali, soci: soci, obbligoGrammi: obbligo, config: config };
     });
   }
 
-  function calcolaSocio(membro, venduto, quota, ritirato, obbligo) {
+  function calcolaSocio(membro, venduto, quota, ritirato, obbligo, consegnato, compensato) {
+    // Debito: carne ricevuta senza esserci, meno le quote gia' compensate
+    // saltando le divisioni successive.
+    var debito = Math.max(0, (consegnato || 0) - (compensato || 0));
     return {
       membro: membro,
       quotaTeoricaGrammi: quota,
@@ -526,7 +763,12 @@
       // disponibile, e non si azzera quando l'obbligo e' assolto.
       creditoMaturatoGrammi: venduto,
       creditoRitiratoGrammi: ritirato,
-      creditoDisponibileGrammi: venduto - ritirato
+      creditoDisponibileGrammi: venduto - ritirato,
+      // Compensazione: conto separato dal credito.
+      consegnatoSenzaDirittoGrammi: consegnato || 0,
+      compensatoGrammi: compensato || 0,
+      debitoCarneGrammi: debito,
+      inCompensazione: debito > 0
     };
   }
 
@@ -563,6 +805,9 @@
     registraVendita: registraVendita,
     impostaVenditaAnnullata: impostaVenditaAnnullata,
     registraRitiro: registraRitiro,
+    registraUscita: registraUscita,
+    impostaDiritto: impostaDiritto,
+    debitiStagione: debitiStagione,
     impostaRitiroAnnullato: impostaRitiroAnnullato,
     riepilogoLotto: riepilogoLotto,
     perGiornata: perGiornata,
