@@ -22,12 +22,11 @@
     appId: ''
   };
 
-  // Amministratori: chi vede i comandi di modifica nell'interfaccia.
-  // ATTENZIONE: questo elenco serve SOLO a decidere cosa mostrare.
-  // Il permesso vero lo danno le regole del database, che leggono la
-  // raccolta "amministratori". Le due liste vanno tenute allineate,
-  // ma se qui ci fosse un errore nessuno potrebbe comunque scrivere.
-  var AMMINISTRATORI = [];
+  // NON esiste piu' un elenco di email nel frontend.
+  // Chi puo' entrare lo dice esclusivamente il database: esiste il
+  // documento /amministratori/{uid}? Allora entra. Altrimenti no.
+  // Togliendo quel documento la persona non entra piu' al riavvio
+  // successivo, senza toccare il codice.
 
   function pulito(v) { return String(v || '').trim(); }
 
@@ -37,18 +36,8 @@
       pulito(CONFIG.projectId) && pulito(CONFIG.appId));
   }
 
-  function eAmministratore(email) {
-    var e = pulito(email).toLowerCase();
-    if (!e) return false;
-    return AMMINISTRATORI.some(function (x) {
-      return pulito(x).toLowerCase() === e;
-    });
-  }
-
   App.configFirebase = {
     CONFIG: CONFIG,
-    AMMINISTRATORI: AMMINISTRATORI,
-    configurato: configurato,
-    eAmministratore: eAmministratore
+    configurato: configurato
   };
 })(typeof window !== 'undefined' ? window : globalThis);

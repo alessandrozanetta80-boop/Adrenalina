@@ -7,9 +7,9 @@ rules_version = '2';
 // non contano. Conta questo file.
 //
 // Principio:
-//   - chi non ha fatto l'accesso non vede e non scrive niente;
-//   - chi ha fatto l'accesso legge tutto;
-//   - scrive solo chi e' elencato nella raccolta "amministratori".
+//   - entrano SOLO le persone elencate nella raccolta "amministratori";
+//   - chiunque altro non legge e non scrive niente, nemmeno dopo
+//     essersi autenticato con Google.
 //
 // La raccolta "amministratori" contiene un documento per ogni
 // amministratore, con l'identificativo dell'account come nome del
@@ -33,28 +33,46 @@ service cloud.firestore {
 
     // L'elenco degli amministratori si legge (serve all'app per sapere
     // cosa mostrare) ma non si tocca da qui: solo dalla console.
+    // Ognuno puo' controllare solo la propria voce: serve all'app per
+    // sapere se sei autorizzato. Nessuno puo' modificarla da qui.
     match /amministratori/{uid} {
-      allow read: if autenticato();
+      allow read: if autenticato() && request.auth.uid == uid;
       allow write: if false;
     }
 
-    // Tutti i dati della squadra: lettura a chi e' entrato,
-    // scrittura ai soli amministratori.
-    match /squadre/{documento=**}          { allow read: if autenticato(); allow write: if amministratore(); }
-    match /stagioni/{documento=**}         { allow read: if autenticato(); allow write: if amministratore(); }
-    match /membri/{documento=**}           { allow read: if autenticato(); allow write: if amministratore(); }
-    match /iscrizioni/{documento=**}       { allow read: if autenticato(); allow write: if amministratore(); }
-    match /giornate/{documento=**}         { allow read: if autenticato(); allow write: if amministratore(); }
-    match /presenze/{documento=**}         { allow read: if autenticato(); allow write: if amministratore(); }
-    match /abbattimenti/{documento=**}     { allow read: if autenticato(); allow write: if amministratore(); }
-    match /controlliSanitari/{documento=**} { allow read: if autenticato(); allow write: if amministratore(); }
-    match /calendariBattuta/{documento=**} { allow read: if autenticato(); allow write: if amministratore(); }
-    match /configCarne/{documento=**}      { allow read: if autenticato(); allow write: if amministratore(); }
-    match /lottiCarne/{documento=**}       { allow read: if autenticato(); allow write: if amministratore(); }
-    match /quoteCarne/{documento=**}       { allow read: if autenticato(); allow write: if amministratore(); }
-    match /venditeCarne/{documento=**}     { allow read: if autenticato(); allow write: if amministratore(); }
-    match /ritiriCarne/{documento=**}      { allow read: if autenticato(); allow write: if amministratore(); }
-    match /meta/{documento=**}             { allow read: if autenticato(); allow write: if amministratore(); }
+    // Tutti i dati della squadra: solo gli amministratori, sia in
+    // lettura sia in scrittura.
+    match /squadre/{documento=**}          { allow read, write: if amministratore(); }
+    match /stagioni/{documento=**}         { allow read, write: if amministratore(); }
+    match /membri/{documento=**}           { allow read, write: if amministratore(); }
+    match /iscrizioni/{documento=**}       { allow read, write: if amministratore(); }
+    match /giornate/{documento=**}         { allow read, write: if amministratore(); }
+    match /presenze/{documento=**}         { allow read, write: if amministratore(); }
+    match /abbattimenti/{documento=**}     { allow read, write: if amministratore(); }
+    match /controlliSanitari/{documento=**} { allow read, write: if amministratore(); }
+    match /calendariBattuta/{documento=**} { allow read, write: if amministratore(); }
+    match /configCarne/{documento=**}      { allow read, write: if amministratore(); }
+    match /lottiCarne/{documento=**}       { allow read, write: if amministratore(); }
+    match /quoteCarne/{documento=**}       { allow read, write: if amministratore(); }
+    match /venditeCarne/{documento=**}     { allow read, write: if amministratore(); }
+    match /ritiriCarne/{documento=**}      { allow read, write: if amministratore(); }
+    match /meta/{documento=**}             { allow read, write: if amministratore(); }
+
+    // Registro delle operazioni gia' applicate: serve a non duplicare
+    // una modifica ritentata dopo un timeout. Si crea e si legge, non
+    // si modifica ne' si cancella: e' la memoria di cosa e' successo.
+    match /operazioni/{operationId} {
+      allow read, create: if amministratore();
+      allow update, delete: if false;
+    }
+
+    // Contatori dei codici capo. Si aggiornano solo dentro una
+    // transazione dell'app; nessuno li puo' cancellare, altrimenti
+    // la numerazione ripartirebbe da capo.
+    match /contatori/{nome} {
+      allow read, create, update: if amministratore();
+      allow delete: if false;
+    }
 
     // Tutto il resto e' chiuso. Se un domani si aggiunge una raccolta
     // va dichiarata qui sopra: finche' non lo e', nessuno la tocca.

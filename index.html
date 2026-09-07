@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>Adrenalina — Gestionale squadra</title>
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=0.7.1">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png?v=0.7.1">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=0.8.0">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png?v=0.8.0">
 <!-- icona-192.png e icona-512.png sono pronti per una futura
      icona PWA: il manifest non esiste ancora e non viene aggiunto qui. -->
-<link rel="preload" href="adrenalina-display.woff2?v=0.7.1" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="base.css?v=0.7.1">
-<link rel="stylesheet" href="layout.css?v=0.7.1">
-<link rel="stylesheet" href="components.css?v=0.7.1">
+<link rel="preload" href="adrenalina-display.woff2?v=0.8.0" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="base.css?v=0.8.0">
+<link rel="stylesheet" href="layout.css?v=0.8.0">
+<link rel="stylesheet" href="components.css?v=0.8.0">
 </head>
 <body>
 
@@ -45,60 +45,63 @@
 <!-- Script classici, caricati in ordine esplicito. Nessun modulo ES, nessun build step. -->
 <!-- SDK Firebase, copia locale: nessuna chiamata a CDN esterni.
      Se la configurazione e' vuota queste librerie restano inutilizzate. -->
-<script src="firebase-app-compat.js?v=0.7.1"></script>
-<script src="firebase-auth-compat.js?v=0.7.1"></script>
-<script src="versione.js?v=0.7.1"></script>
-<script src="firebase.js?v=0.7.1"></script>
-<script src="costanti.js?v=0.7.1"></script>
-<script src="accessoService.js?v=0.7.1"></script>
-<script src="id.js?v=0.7.1"></script>
-<script src="calendario.js?v=0.7.1"></script>
-<script src="schema.js?v=0.7.1"></script>
-<script src="db.js?v=0.7.1"></script>
-<script src="repo.js?v=0.7.1"></script>
-<script src="repoSquadre.js?v=0.7.1"></script>
-<script src="repoStagioni.js?v=0.7.1"></script>
-<script src="repoMembri.js?v=0.7.1"></script>
-<script src="repoIscrizioni.js?v=0.7.1"></script>
-<script src="repoGiornate.js?v=0.7.1"></script>
-<script src="repoAbbattimenti.js?v=0.7.1"></script>
-<script src="repoControlliSanitari.js?v=0.7.1"></script>
-<script src="repoCarne.js?v=0.7.1"></script>
-<script src="quoteService.js?v=0.7.1"></script>
-<script src="squadraService.js?v=0.7.1"></script>
-<script src="stagioneService.js?v=0.7.1"></script>
-<script src="membroService.js?v=0.7.1"></script>
-<script src="presenzaService.js?v=0.7.1"></script>
-<script src="giornataService.js?v=0.7.1"></script>
-<script src="capoService.js?v=0.7.1"></script>
-<script src="sanitarioService.js?v=0.7.1"></script>
-<script src="calendarioBattuteService.js?v=0.7.1"></script>
-<script src="carneService.js?v=0.7.1"></script>
-<script src="backupService.js?v=0.7.1"></script>
-<script src="gennaio2026.js?v=0.7.1"></script>
-<script src="datiDemo.js?v=0.7.1"></script>
-<script src="componenti.js?v=0.7.1"></script>
-<script src="vistaAccesso.js?v=0.7.1"></script>
-<script src="vistaConfigurazione.js?v=0.7.1"></script>
-<script src="vistaHome.js?v=0.7.1"></script>
-<script src="vistaSoci.js?v=0.7.1"></script>
-<script src="vistaSchedaSocio.js?v=0.7.1"></script>
-<script src="vistaFormSocio.js?v=0.7.1"></script>
-<script src="vistaGiornate.js?v=0.7.1"></script>
-<script src="vistaFormGiornata.js?v=0.7.1"></script>
-<script src="vistaSchedaGiornata.js?v=0.7.1"></script>
-<script src="vistaPresenze.js?v=0.7.1"></script>
-<script src="vistaAbbattimenti.js?v=0.7.1"></script>
-<script src="vistaFormCapo.js?v=0.7.1"></script>
-<script src="vistaSchedaCapo.js?v=0.7.1"></script>
-<script src="vistaFormSanitario.js?v=0.7.1"></script>
-<script src="vistaCarneGiornata.js?v=0.7.1"></script>
-<script src="vistaFormVendita.js?v=0.7.1"></script>
-<script src="vistaCarneStagione.js?v=0.7.1"></script>
-<script src="vistaCalendarioConfig.js?v=0.7.1"></script>
-<script src="vistaStagioni.js?v=0.7.1"></script>
-<script src="vistaBackup.js?v=0.7.1"></script>
-<script src="router.js?v=0.7.1"></script>
-<script src="app.js?v=0.7.1"></script>
+<script src="firebase-app-compat.js?v=0.8.0"></script>
+<script src="firebase-auth-compat.js?v=0.8.0"></script>
+<script src="versione.js?v=0.8.0"></script>
+<script src="firebase.js?v=0.8.0"></script>
+<script src="costanti.js?v=0.8.0"></script>
+<script src="accessoService.js?v=0.8.0"></script>
+<script src="id.js?v=0.8.0"></script>
+<script src="idDeterministici.js?v=0.8.0"></script>
+<script src="sincronizzazione.js?v=0.8.0"></script>
+<script src="calendario.js?v=0.8.0"></script>
+<script src="schema.js?v=0.8.0"></script>
+<script src="db.js?v=0.8.0"></script>
+<script src="repo.js?v=0.8.0"></script>
+<script src="adattatoreFirestore.js?v=0.8.0"></script>
+<script src="repoSquadre.js?v=0.8.0"></script>
+<script src="repoStagioni.js?v=0.8.0"></script>
+<script src="repoMembri.js?v=0.8.0"></script>
+<script src="repoIscrizioni.js?v=0.8.0"></script>
+<script src="repoGiornate.js?v=0.8.0"></script>
+<script src="repoAbbattimenti.js?v=0.8.0"></script>
+<script src="repoControlliSanitari.js?v=0.8.0"></script>
+<script src="repoCarne.js?v=0.8.0"></script>
+<script src="quoteService.js?v=0.8.0"></script>
+<script src="squadraService.js?v=0.8.0"></script>
+<script src="stagioneService.js?v=0.8.0"></script>
+<script src="membroService.js?v=0.8.0"></script>
+<script src="presenzaService.js?v=0.8.0"></script>
+<script src="giornataService.js?v=0.8.0"></script>
+<script src="capoService.js?v=0.8.0"></script>
+<script src="sanitarioService.js?v=0.8.0"></script>
+<script src="calendarioBattuteService.js?v=0.8.0"></script>
+<script src="carneService.js?v=0.8.0"></script>
+<script src="backupService.js?v=0.8.0"></script>
+<script src="gennaio2026.js?v=0.8.0"></script>
+<script src="datiDemo.js?v=0.8.0"></script>
+<script src="componenti.js?v=0.8.0"></script>
+<script src="vistaAccesso.js?v=0.8.0"></script>
+<script src="vistaConfigurazione.js?v=0.8.0"></script>
+<script src="vistaHome.js?v=0.8.0"></script>
+<script src="vistaSoci.js?v=0.8.0"></script>
+<script src="vistaSchedaSocio.js?v=0.8.0"></script>
+<script src="vistaFormSocio.js?v=0.8.0"></script>
+<script src="vistaGiornate.js?v=0.8.0"></script>
+<script src="vistaFormGiornata.js?v=0.8.0"></script>
+<script src="vistaSchedaGiornata.js?v=0.8.0"></script>
+<script src="vistaPresenze.js?v=0.8.0"></script>
+<script src="vistaAbbattimenti.js?v=0.8.0"></script>
+<script src="vistaFormCapo.js?v=0.8.0"></script>
+<script src="vistaSchedaCapo.js?v=0.8.0"></script>
+<script src="vistaFormSanitario.js?v=0.8.0"></script>
+<script src="vistaCarneGiornata.js?v=0.8.0"></script>
+<script src="vistaFormVendita.js?v=0.8.0"></script>
+<script src="vistaCarneStagione.js?v=0.8.0"></script>
+<script src="vistaCalendarioConfig.js?v=0.8.0"></script>
+<script src="vistaStagioni.js?v=0.8.0"></script>
+<script src="vistaBackup.js?v=0.8.0"></script>
+<script src="router.js?v=0.8.0"></script>
+<script src="app.js?v=0.8.0"></script>
 </body>
 </html>

@@ -100,12 +100,15 @@
     // solo la schermata di accesso. Con Firebase non configurato questa
     // condizione non scatta mai e l'app funziona come sempre.
     var A = App.core.accesso;
-    if (A && A.attivo() && !A.autenticato()) {
+    if (A && A.attivo() && !A.autorizzato()) {
+      // Non ancora entrato, oppure entrato ma non in elenco: in entrambi
+      // i casi si vede solo la schermata di accesso, che dira' quale
+      // dei due casi e'.
       if (rotta.vista !== 'accesso') return vai('#/accesso');
       return disegnaRotta('accesso', {});
     }
-    // Gia' dentro: la schermata di accesso non serve piu'.
-    if (A && A.attivo() && A.autenticato() && rotta.vista === 'accesso') {
+    // Gia' dentro e autorizzato: la schermata di accesso non serve piu'.
+    if (A && A.attivo() && A.autorizzato() && rotta.vista === 'accesso') {
       return vai('#/home');
     }
 

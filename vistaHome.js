@@ -168,9 +168,7 @@
                     '<span class="titolo">' +
                       C.esc(App.core.accesso.stato().utente.nome) + '</span>' +
                     '<span class="sotto">' +
-                      (App.core.accesso.amministratore()
-                        ? 'Amministratore · puoi modificare i dati'
-                        : 'Socio · sola lettura') +
+                      C.esc(App.core.accesso.stato().utente.email) +
                     '</span>' +
                   '</span>' +
                   '<button class="btn-piccolo" id="btn-esci">Esci</button>' +

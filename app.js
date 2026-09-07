@@ -49,7 +49,12 @@
     // L'accesso si prepara per primo: se e' richiesto, il router mostra
     // la schermata di login invece dei dati.
     App.core.accesso.avvia()
-      .then(function () { return App.seed.datiDemo.inizializzaSeNecessario(); })
+      .then(function () {
+        // Chi non e' autorizzato non deve vedere nessun dato, nemmeno
+        // quelli locali: non si crea niente e non si legge niente.
+        if (!App.core.accesso.autorizzato()) return null;
+        return App.seed.datiDemo.inizializzaSeNecessario();
+      })
       .then(function () {
         App.ui.router.avvia();
         controllaVersione();

@@ -147,12 +147,33 @@
         { nome: 'by_lotto',    keyPath: 'lottoCarneId' }
       ],
       versione: 5
+    },
+    // --- schema versione 6: sincronizzazione ---
+    {
+      // Coda locale delle modifiche non ancora inviate.
+      nome: 'outbox',
+      keyPath: 'operationId',
+      indici: [
+        { nome: 'by_stato', keyPath: 'stato' },
+        { nome: 'by_creata', keyPath: 'creataIl' }
+      ],
+      versione: 6
+    },
+    {
+      // Registro di cosa e' stato sincronizzato, da chi e con che esito.
+      nome: 'audit',
+      keyPath: 'id',
+      indici: [
+        { nome: 'by_quando', keyPath: 'quando' },
+        { nome: 'by_operazione', keyPath: 'operationId' }
+      ],
+      versione: 6
     }
   ];
 
   App.data.schema = {
     dbName: 'adrenalinaDB',
-    dbVersion: 5,
+    dbVersion: 6,
     stores: STORES,
     // Store introdotti da una specifica versione dello schema.
     storesDiVersione: function (v) {
@@ -160,7 +181,10 @@
     },
     nomiStore: STORES.map(function (s) { return s.nome; }),
     // Store inclusi nel file di backup (tutti).
-    nomiStoreBackup: STORES.map(function (s) { return s.nome; }),
+    // Il backup contiene i dati della squadra, non la coda locale di
+    // sincronizzazione ne' il registro: sono di questo dispositivo.
+    nomiStoreBackup: STORES.map(function (s) { return s.nome; })
+      .filter(function (n) { return n !== 'outbox' && n !== 'audit'; }),
     // Store che contengono record marcabili demo.
     nomiStoreDemo: ['squadre', 'stagioni', 'membri', 'iscrizioni',
                     'giornate', 'presenze', 'abbattimenti', 'controlliSanitari',

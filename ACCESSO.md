@@ -48,23 +48,14 @@ var CONFIG = {
 };
 ```
 
-6. Nello stesso file scrivi le email dei tre amministratori:
+6. Carica `firebase.js` aggiornato su GitHub.
 
-```js
-var AMMINISTRATORI = [
-  'alessandro.zanetta@gmail.com',
-  'stefano.bianchi@gmail.com',
-  'luca.malcotti@gmail.com'
-];
-```
+**Nel file non c'è nessun elenco di persone.** Chi può entrare lo decide
+solo il database, al punto 7: se esiste il documento con il tuo
+identificativo entri, altrimenti no. Togliendo quel documento la persona
+resta fuori al riavvio successivo, senza toccare il codice.
 
-**Questi valori non sono segreti.** Identificano il progetto, non
-autorizzano niente. Chi protegge i dati sono le regole del punto 6.
 
-L'elenco `AMMINISTRATORI` serve solo a decidere cosa mostrare
-nell'interfaccia. Il permesso di scrivere lo dà il punto 6.
-
-7. Carica `firebase.js` aggiornato su GitHub.
 
 ## 5. Creare il database
 
@@ -82,13 +73,14 @@ nell'interfaccia. Il permesso di scrivere lo dà il punto 6.
    del pacchetto.
 3. **Pubblica**.
 
-Da questo momento: chi non ha fatto l'accesso non vede niente, chi l'ha
-fatto legge, e scrive solo chi è elencato al punto 7.
+Da questo momento entrano **solo** le persone elencate al punto 7.
+Chiunque altro, anche se si autentica con Google, non legge e non scrive
+niente.
 
-## 7. Dire al database chi sono gli amministratori
+## 7. Dire al database chi può entrare
 
-Le regole cercano un documento con l'identificativo dell'account. Per
-ognuno dei tre amministratori:
+Le regole cercano un documento con l'identificativo dell'account.
+**Chi non ha il suo documento qui non entra.** Per ognuno dei tre:
 
 1. Fai fare a quella persona **un primo accesso** all'app (dopo il punto 4).
 2. **Authentication** → **Users**: compare la riga con la sua email.
@@ -99,15 +91,17 @@ ognuno dei tre amministratori:
    esempio `email` (stringa) con la sua email, così sai chi è.
 5. **Salva**. Ripeti per gli altri due.
 
-Per togliere un amministratore basta cancellare il suo documento.
+Per togliere l'accesso a qualcuno basta cancellare il suo documento:
+dal ricaricamento successivo non entra più.
 
 ---
 
 ## Provare che funziona
 
 - **Apri l'app in una finestra anonima**: deve chiedere l'accesso.
-- **Entra con un account non amministratore**: deve dire «Socio · sola lettura».
-- **Entra con un amministratore**: deve dire «Amministratore · puoi modificare i dati».
+- **Entra con un account qualsiasi non in elenco**: deve dire «Accesso non
+  consentito» e mostrare l'email usata, senza far vedere alcun dato.
+- **Entra con uno dei tre**: deve aprire la Home normalmente.
 
 ## Cosa NON è ancora attivo
 

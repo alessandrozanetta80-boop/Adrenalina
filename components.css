@@ -1373,3 +1373,5 @@
 }
 
 .voce .coda strong { font-variant-numeric: tabular-nums; }
+
+.blocco-accesso { max-width: 360px; margin-bottom: 16px; text-align: left; }

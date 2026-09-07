@@ -33,6 +33,9 @@
   // Blocco della versione 5: calendario battute e modulo carne.
   function creaVersione5(db) { creaStoreDiVersione(db, 5); }
 
+  // Blocco della versione 6: coda di sincronizzazione e registro.
+  function creaVersione6(db) { creaStoreDiVersione(db, 6); }
+
   function apri() {
     if (_db) return Promise.resolve(_db);
     return new Promise(function (resolve, reject) {
@@ -58,7 +61,7 @@
         // Per aggiungere in futuro i moduli previsti dal piano basta alzare
         // schema.dbVersion e appendere un blocco:
         //
-        //   if (vecchia < 6) { creaVersione6(db); }
+        //   if (vecchia < 7) { creaVersione7(db); }
         //
         // Mai un else, mai un break: i blocchi non si escludono a vicenda.
         // Ogni blocco deve solo AGGIUNGERE store o indici, mai cancellare
@@ -77,6 +80,9 @@
         }
         if (vecchia < 5) {
           creaVersione5(db);
+        }
+        if (vecchia < 6) {
+          creaVersione6(db);
         }
 
         // Su un database preesistente meta.schemaVersion resterebbe fermo alla
