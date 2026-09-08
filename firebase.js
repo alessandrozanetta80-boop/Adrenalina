@@ -16,10 +16,10 @@
   // Impostazioni progetto -> Le tue app -> App web. Istruzioni passo passo
   // in ACCESSO.md.
   var CONFIG = {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    appId: ''
+    apiKey: 'AIzaSyBuz8s_d1PSWf1uz6ZxWrvyz1f1QWMMsNc',
+    authDomain: 'adrenalina---hunting.firebaseapp.com',
+    projectId: 'adrenalina---hunting',
+    appId: '1:112330083932:web:2ef9c49508140a97b9e099'
   };
 
   // NON esiste piu' un elenco di email nel frontend.
@@ -32,8 +32,12 @@
 
   // L'accesso e' attivo solo se la configurazione e' completa.
   function configurato() {
-    return !!(pulito(CONFIG.apiKey) && pulito(CONFIG.authDomain) &&
-      pulito(CONFIG.projectId) && pulito(CONFIG.appId));
+    return !!(
+      pulito(CONFIG.apiKey) &&
+      pulito(CONFIG.authDomain) &&
+      pulito(CONFIG.projectId) &&
+      pulito(CONFIG.appId)
+    );
   }
 
   App.configFirebase = {
