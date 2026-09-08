@@ -5,6 +5,7 @@
 
   var ROTTE = [
     { re: /^#\/accesso$/,                    vista: 'accesso' },
+    { re: /^#\/accessi$/,                    vista: 'gestioneAccessi' },
     { re: /^#\/configurazione$/,             vista: 'configurazione' },
     { re: /^#\/home$/,                       vista: 'home' },
     { re: /^#\/soci$/,                       vista: 'soci' },
@@ -27,6 +28,7 @@
     { re: /^#\/giornata\/([^/]+)\/carne$/,   vista: 'carneGiornata', params: function (m) { return { id: m[1] }; } },
     { re: /^#\/carne\/ritiro$/,              vista: 'formRitiro' },
     { re: /^#\/carne$/,                      vista: 'carneStagione' },
+    { re: /^#\/sincronizzazione$/,           vista: 'sincronizzazione' },
     { re: /^#\/calendario$/,                 vista: 'calendarioConfig' },
     { re: /^#\/stagioni$/,                   vista: 'stagioni' },
     { re: /^#\/backup$/,                     vista: 'backup' }
@@ -40,6 +42,19 @@
   // Rotte raggiungibili anche senza nessuna squadra in archivio.
   var ROTTE_SENZA_SQUADRA = ['configurazione', 'backup', 'accesso'];
 
+  // Schermate riservate a chi puo' modificare: form di inserimento e
+  // correzione, configurazione, backup, gestione accessi, strumenti
+  // di sincronizzazione.
+  // Le schermate che servono a creare o correggere qualcosa. Restano
+  // fuori la configurazione iniziale e il backup, che a un lettore
+  // servono comunque: la prima e' la schermata di primo avvio,
+  // il secondo gli permette di esportare i dati che vede.
+  var VISTE_DI_MODIFICA = [
+    'formSocio', 'formGiornata', 'formCapo', 'formSanitario',
+    'formVendita', 'formRitiro', 'carneGiornata', 'calendarioConfig',
+    'gestioneAccessi', 'sincronizzazione', 'stagioni'
+  ];
+
   // A quale scheda della barra bassa appartiene ogni vista.
   var TAB = {
     home: 'home', configurazione: 'home',
@@ -49,7 +64,8 @@
     abbattimenti: 'capi', schedaCapo: 'capi', formCapo: 'capi', formSanitario: 'capi',
     soci: 'squadra', schedaSocio: 'squadra', formSocio: 'squadra',
     stagioni: 'home', backup: 'home', calendarioConfig: 'giornate',
-    accesso: ''
+    sincronizzazione: 'home',
+    accesso: '', gestioneAccessi: 'home'
   };
 
   function evidenziaTab(nomeVista) {
@@ -86,6 +102,9 @@
   }
 
   function disegnaOra() {
+    // La finestra puo' essere stata chiusa mentre un disegno era in
+    // coda: in quel caso non c'e' piu' niente da disegnare.
+    if (typeof document === 'undefined' || !document || !document.body) return;
     var hash = global.location.hash || '#/home';
     var rotta = null, m = null;
     for (var i = 0; i < ROTTE.length; i++) {
@@ -95,6 +114,18 @@
     if (!rotta) return vai('#/home');
 
     var params = rotta.params ? rotta.params(m) : {};
+
+    // Chi ha accesso in sola lettura puo' consultare tutto, ma le
+    // schermate che servono a creare, modificare o amministrare non
+    // deve poterle nemmeno aprire scrivendo l'indirizzo a mano.
+    if (App.core.accesso.attivo() && App.core.accesso.lettore &&
+        App.core.accesso.lettore() &&
+        VISTE_DI_MODIFICA.indexOf(rotta.vista) !== -1) {
+      // Si mostra la Home senza rimbalzare l'indirizzo: cambiare hash
+      // qui dentro farebbe ripartire il giro da capo.
+      App.ui.componenti.toast('Il tuo accesso è in sola lettura.', 'errore');
+      return disegnaRotta('home', {});
+    }
 
     // Se l'accesso e' richiesto e nessuno ha fatto il login, si vede
     // solo la schermata di accesso. Con Firebase non configurato questa

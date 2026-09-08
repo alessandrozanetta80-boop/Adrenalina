@@ -50,10 +50,11 @@
         : '<div class="vuoto">Nessun socio da mostrare.</div>';
 
       C.monta(
-        '<div class="sezione">' +
-          '<button class="btn btn-contorno" data-vai="#/socio/nuovo">' +
-          '+ Aggiungi socio</button>' +
-        '</div>' +
+        C.seModifica(
+          '<div class="sezione">' +
+            '<button class="btn btn-contorno" data-vai="#/socio/nuovo">' +
+            '+ Aggiungi socio</button>' +
+          '</div>') +
         (inattivi
           ? '<div class="sezione"><label class="interruttore">' +
             '<input type="checkbox" id="chk-inattivi"' + (mostraInattivi ? ' checked' : '') + '>' +

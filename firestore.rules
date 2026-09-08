@@ -2,80 +2,324 @@ rules_version = '2';
 
 // REGOLE DI SICUREZZA — Adrenalina
 //
-// Queste regole sono l'unica cosa che protegge davvero i dati della
-// squadra. Non il repository privato, non la chiave nell'app: quelle
-// non contano. Conta questo file.
+// Queste regole sono l'unica cosa che protegge davvero i dati. Non il
+// repository privato, non la chiave nell'app: quelle non contano.
 //
-// Principio:
-//   - entrano SOLO le persone elencate nella raccolta "amministratori";
-//   - chiunque altro non legge e non scrive niente, nemmeno dopo
-//     essersi autenticato con Google.
+// Principio: si parte da tutto chiuso e si apre solo il necessario.
+// Entrano soltanto le persone che hanno un documento in /accessi, con
+// il ruolo che quel documento dichiara.
 //
-// La raccolta "amministratori" contiene un documento per ogni
-// amministratore, con l'identificativo dell'account come nome del
-// documento. Nessuno puo' modificarla dall'app: si aggiunge o si
-// toglie un amministratore solo dalla console Firebase.
+// Nota importante: le regole NON possono sapere se una scrittura arriva
+// da una transazione del client. Possono solo guardare i dati prima e
+// dopo. Per questo i contatori sono protetti verificando la
+// trasformazione (il valore puo' solo salire di uno), non il metodo
+// usato per scriverli.
 //
-// Come caricarle: console.firebase.google.com -> Firestore Database ->
-// Regole -> incolla questo file -> Pubblica. Passo per passo in ACCESSO.md.
+// Come pubblicarle: console.firebase.google.com -> Firestore Database ->
+// Regole -> incolla questo file -> Pubblica.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Gli store condivisi, in un posto solo.
+    function STORE_CONDIVISI_() { return ['squadre', 'stagioni', 'membri',
+      'iscrizioni', 'giornate', 'presenze', 'abbattimenti',
+      'controlliSanitari', 'calendariBattuta', 'configCarne',
+      'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne']; }
+
+    // ---------------------------------------------------------- aiuti
     function autenticato() {
       return request.auth != null;
     }
 
-    function amministratore() {
+    // Chi sei lo dice /accessi/{uid}. Due ruoli: chi amministra e chi
+    // guarda soltanto. Chi non ha il documento non entra.
+    function accessoMio() {
+      return get(/databases/$(database)/documents/accessi/$(request.auth.uid)).data;
+    }
+    function hoAccesso() {
       return autenticato() &&
-        exists(/databases/$(database)/documents/amministratori/$(request.auth.uid));
+        exists(/databases/$(database)/documents/accessi/$(request.auth.uid));
+    }
+    function ruoloUtente() {
+      return hoAccesso() ? accessoMio().ruolo : 'NESSUNO';
+    }
+    function autorizzato() {
+      return ruoloUtente() == 'AMMINISTRATORE' || ruoloUtente() == 'LETTORE';
+    }
+    function amministratore() {
+      return ruoloUtente() == 'AMMINISTRATORE';
     }
 
-    // L'elenco degli amministratori si legge (serve all'app per sapere
-    // cosa mostrare) ma non si tocca da qui: solo dalla console.
-    // Ognuno puo' controllare solo la propria voce: serve all'app per
-    // sapere se sei autorizzato. Nessuno puo' modificarla da qui.
-    match /amministratori/{uid} {
-      allow read: if autenticato() && request.auth.uid == uid;
-      allow write: if false;
+    // Gli store che viaggiano fra i dispositivi: l'elenco serve anche
+    // a validare i conteggi dell'inizializzazione.
+    function nuovo() { return request.resource.data; }
+    function vecchio() { return resource.data; }
+
+    function soloCampi(attesi) {
+      return nuovo().keys().hasOnly(attesi) && nuovo().keys().hasAll(attesi);
     }
 
-    // Tutti i dati della squadra: solo gli amministratori, sia in
-    // lettura sia in scrittura.
-    match /squadre/{documento=**}          { allow read, write: if amministratore(); }
-    match /stagioni/{documento=**}         { allow read, write: if amministratore(); }
-    match /membri/{documento=**}           { allow read, write: if amministratore(); }
-    match /iscrizioni/{documento=**}       { allow read, write: if amministratore(); }
-    match /giornate/{documento=**}         { allow read, write: if amministratore(); }
-    match /presenze/{documento=**}         { allow read, write: if amministratore(); }
-    match /abbattimenti/{documento=**}     { allow read, write: if amministratore(); }
-    match /controlliSanitari/{documento=**} { allow read, write: if amministratore(); }
-    match /calendariBattuta/{documento=**} { allow read, write: if amministratore(); }
-    match /configCarne/{documento=**}      { allow read, write: if amministratore(); }
-    match /lottiCarne/{documento=**}       { allow read, write: if amministratore(); }
-    match /quoteCarne/{documento=**}       { allow read, write: if amministratore(); }
-    match /venditeCarne/{documento=**}     { allow read, write: if amministratore(); }
-    match /ritiriCarne/{documento=**}      { allow read, write: if amministratore(); }
-    match /meta/{documento=**}             { allow read, write: if amministratore(); }
+    // ------------------------------------------------ chi puo' entrare
+    // Ognuno legge solo la propria voce: serve all'app per sapere se e'
+    // autorizzata. L'elenco completo non e' leggibile, e nessuno puo'
+    // aggiungersi o togliersi da qui: si fa dalla console.
+    // ELENCO DEGLI ACCESSI
+    // Ognuno legge la propria voce, per sapere se e cosa puo' fare.
+    // L'elenco intero lo vedono solo gli amministratori, gli unici a
+    // poter dare, cambiare o togliere un accesso. Nessuno puo' toccare
+    // la propria voce: non ci si promuove e non ci si revoca da soli.
+    match /accessi/{uid} {
+      allow read: if autenticato() && (request.auth.uid == uid || amministratore());
 
-    // Registro delle operazioni gia' applicate: serve a non duplicare
-    // una modifica ritentata dopo un timeout. Si crea e si legge, non
-    // si modifica ne' si cancella: e' la memoria di cosa e' successo.
-    match /operazioni/{operationId} {
-      allow read, create: if amministratore();
-      allow update, delete: if false;
+      allow create: if amministratore() &&
+        request.auth.uid != uid &&
+        soloCampi(['uid', 'email', 'ruolo', 'creatoDa', 'creatoIl',
+                   'modificatoDa', 'modificatoIl']) &&
+        nuovo().uid == uid &&
+        nuovo().email is string &&
+        (nuovo().ruolo == 'AMMINISTRATORE' || nuovo().ruolo == 'LETTORE') &&
+        nuovo().creatoDa == request.auth.uid &&
+        nuovo().creatoIl is timestamp &&
+        nuovo().modificatoDa == request.auth.uid &&
+        nuovo().modificatoIl is timestamp;
+
+      allow update: if amministratore() &&
+        request.auth.uid != uid &&
+        soloCampi(['uid', 'email', 'ruolo', 'creatoDa', 'creatoIl',
+                   'modificatoDa', 'modificatoIl']) &&
+        nuovo().uid == resource.data.uid &&
+        nuovo().creatoDa == resource.data.creatoDa &&
+        nuovo().creatoIl == resource.data.creatoIl &&
+        (nuovo().ruolo == 'AMMINISTRATORE' || nuovo().ruolo == 'LETTORE') &&
+        nuovo().modificatoDa == request.auth.uid &&
+        nuovo().modificatoIl is timestamp;
+
+      allow delete: if amministratore() && request.auth.uid != uid;
     }
 
-    // Contatori dei codici capo. Si aggiornano solo dentro una
-    // transazione dell'app; nessuno li puo' cancellare, altrimenti
-    // la numerazione ripartirebbe da capo.
-    match /contatori/{nome} {
-      allow read, create, update: if amministratore();
+    // RICHIESTE DI ACCESSO
+    // Chi non e' autorizzato non legge nulla della squadra, ma puo'
+    // bussare: scrive la propria richiesta con la propria email
+    // autenticata, e non sceglie il proprio ruolo.
+    match /richiesteAccesso/{uid} {
+      allow read: if autenticato() && (request.auth.uid == uid || amministratore());
+      allow create, update: if autenticato() &&
+        request.auth.uid == uid &&
+        soloCampi(['uid', 'email', 'nome', 'quando']) &&
+        nuovo().uid == uid &&
+        nuovo().email == request.auth.token.email &&
+        nuovo().quando is timestamp;
+      allow delete: if amministratore() ||
+        (autenticato() && request.auth.uid == uid);
+    }
+
+    // --------------------------------------------- dati della squadra
+    match /squadre/{documento=**}           { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /stagioni/{documento=**}          { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /membri/{documento=**}            { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /iscrizioni/{documento=**}        { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /giornate/{documento=**}          { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /presenze/{documento=**}          { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /abbattimenti/{documento=**}      { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /controlliSanitari/{documento=**} { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /calendariBattuta/{documento=**}  { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /configCarne/{documento=**}       { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /lottiCarne/{documento=**}        { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /quoteCarne/{documento=**}        { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /venditeCarne/{documento=**}      { allow read: if autorizzato(); allow write: if amministratore(); }
+    match /ritiriCarne/{documento=**}       { allow read: if autorizzato(); allow write: if amministratore(); }
+    // "meta" non viaggia: resta sul dispositivo. Qui e' chiuso, cosi'
+    // nessuno puo' scriverci per errore.
+
+    // Lapidi delle cancellazioni: dicono agli altri dispositivi cosa e'
+    // stato eliminato. Si creano e si leggono, non si modificano:
+    // altrimenti si potrebbe far riapparire o sparire un record a piacere.
+    // Lapidi delle cancellazioni, con la revisione a cui si riferiscono.
+    // Si possono riscrivere solo per una cancellazione successiva, cioe'
+    // con una revisione piu' alta: cosi' una lapide vecchia non puo'
+    // tornare a seppellire un record ricreato.
+    // Il momento e' un timestamp del server, non una stringa scritta
+    // dal telefono: l'orologio del dispositivo non fa fede.
+    match /eliminati/{chiave} {
+      // anche chi legge soltanto deve sapere cosa e' stato cancellato
+      allow read: if autorizzato();
+      allow create: if amministratore() &&
+        soloCampi(['store', 'recordId', 'revision', 'chi', 'quando']) &&
+        nuovo().store is string &&
+        nuovo().recordId is string &&
+        nuovo().revision is int &&
+        nuovo().revision > 0 &&
+        nuovo().chi == request.auth.uid &&
+        nuovo().quando is timestamp;
+      allow update: if amministratore() &&
+        soloCampi(['store', 'recordId', 'revision', 'chi', 'quando']) &&
+        nuovo().store == vecchio().store &&
+        nuovo().recordId == vecchio().recordId &&
+        nuovo().revision is int &&
+        nuovo().revision > vecchio().revision &&
+        nuovo().chi == request.auth.uid &&
+        nuovo().quando is timestamp;
       allow delete: if false;
     }
 
-    // Tutto il resto e' chiuso. Se un domani si aggiunge una raccolta
-    // va dichiarata qui sopra: finche' non lo e', nessuno la tocca.
+    // ---------------------------- memoria delle operazioni applicate
+    // Serve a non ripetere una scrittura quando il telefono ritenta
+    // dopo un timeout. Una volta scritto, un documento qui non si tocca
+    // piu': se si potesse cancellare, la stessa operazione verrebbe
+    // applicata due volte.
+    match /operazioni/{operationId} {
+      allow read: if amministratore();
+      allow create: if amministratore() &&
+        soloCampi(['operationId', 'store', 'recordId', 'tipo', 'chi',
+                   'quando', 'revisionApplicata']) &&
+        nuovo().operationId == operationId &&
+        nuovo().store is string &&
+        nuovo().recordId is string &&
+        (nuovo().tipo == 'put' || nuovo().tipo == 'delete') &&
+        nuovo().chi == request.auth.uid &&
+        nuovo().quando is timestamp &&
+        // la revisione prodotta da questa operazione: serve a rispondere
+        // correttamente a un ritento, e non deve poter essere ritoccata
+        nuovo().revisionApplicata is int &&
+        nuovo().revisionApplicata > 0;
+      allow update, delete: if false;
+    }
+
+    // ------------------------------------------------------ contatori
+    // Da qui escono i codici dei capi (CG-001, CG-002...). Il valore puo'
+    // solo avanzare di uno alla volta: non si riporta indietro, non si
+    // salta avanti, non si cancella. Cosi' due amministratori non
+    // ottengono mai lo stesso numero e la numerazione non riparte da capo.
+    match /contatori/{nome} {
+      allow read: if amministratore();
+
+      // Nell'uso normale un contatore nuovo parte da uno. Solo durante
+      // l'inizializzazione, e solo per chi l'ha acquisita, puo' partire
+      // dal massimo gia' presente in archivio: altrimenti i primi capi
+      // nuovi riprenderebbero codici gia' usati.
+      allow create: if amministratore() &&
+        soloCampi(['ultimo', 'aggiornatoDa']) &&
+        nuovo().ultimo is int &&
+        nuovo().aggiornatoDa == request.auth.uid &&
+        (
+          nuovo().ultimo == 1 ||
+          (
+            exists(/databases/$(database)/documents/bootstrap/iniziale) &&
+            get(/databases/$(database)/documents/bootstrap/iniziale).data.stato == 'IN_CORSO' &&
+            get(/databases/$(database)/documents/bootstrap/iniziale).data.amministratore
+              == request.auth.uid &&
+            nuovo().ultimo > 1
+          )
+        );
+
+      allow update: if amministratore() &&
+        soloCampi(['ultimo', 'aggiornatoDa']) &&
+        nuovo().ultimo is int &&
+        vecchio().ultimo is int &&
+        nuovo().ultimo == vecchio().ultimo + 1 &&
+        nuovo().aggiornatoDa == request.auth.uid;
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------- inizializzazione
+    // Marker dell'archivio: dice che la squadra ha gia' il suo archivio
+    // condiviso. Si scrive una volta sola e non si tocca piu': se lo si
+    // potesse cancellare, qualcuno potrebbe rifare l'inizializzazione e
+    // caricare sopra un secondo archivio.
+    // ------------------------------------------------- inizializzazione
+    // Il primo caricamento dell'archivio e' un'operazione a due tempi.
+    //
+    //   IN_CORSO  scritto all'inizio, in transazione: da quel momento
+    //             nessun altro amministratore puo' iniziare
+    //   COMPLETO  scritto alla fine, dopo la verifica dei dati
+    //
+    // Solo chi ha acquisito puo' completare, la transizione va in una
+    // sola direzione, e una volta COMPLETO il documento non si tocca
+    // piu'. Cancellarlo farebbe credere a un telefono che l'archivio e'
+    // ancora da inizializzare: per questo e' sempre negato.
+    // ------------------------------------------------- inizializzazione
+    // Il documento non e' un semplice "fatto": e' lo stato della prima
+    // pubblicazione dell'archivio.
+    //
+    //   create  -> IN_CORSO, da parte di chi la avvia. Chi arriva dopo
+    //              trova il documento e viene fermato dalle regole.
+    //   update  -> solo IN_CORSO -> COMPLETO, solo dal proprietario,
+    //              senza cambiare identificativo ne' proprietario.
+    //   delete  -> mai. Un archivio inizializzato resta tale.
+    //
+    // Una volta COMPLETO nessuno puo' piu' toccarlo: non esiste modo di
+    // riaprire l'inizializzazione per sovrascrivere l'archivio.
+    // ------------------------------------------------- inizializzazione
+    // Il primo caricamento dell'archivio non e' un'operazione istantanea:
+    // si prenota (IN_CORSO), si caricano i dati, si chiude (COMPLETO).
+    // Le regole devono garantire che:
+    //   - solo un amministratore possa prenotarla;
+    //   - solo chi l'ha prenotata possa chiuderla;
+    //   - una volta chiusa non si tocchi piu';
+    //   - non si possa cancellare per far ripartire tutto da capo.
+    match /bootstrap/{nome} {
+      // serve anche a chi legge: e' cosi' che il telefono capisce a
+      // quale archivio appartiene
+      allow read: if autorizzato();
+
+      // Prenotazione: si parte sempre da IN_CORSO, mai da COMPLETO.
+      allow create: if amministratore() &&
+        soloCampi(['stato', 'identificativo', 'amministratore',
+                   'versioneApp', 'versioneSchema', 'iniziatoIl']) &&
+        nuovo().stato == 'IN_CORSO' &&
+        nuovo().identificativo is string &&
+        nuovo().amministratore == request.auth.uid &&
+        nuovo().versioneApp is string &&
+        nuovo().versioneSchema is int &&
+        nuovo().iniziatoIl is timestamp;
+
+      // Chiusura: unica transizione ammessa, e solo dal proprietario.
+      // L'identificativo dell'archivio non puo' cambiare per strada.
+      allow update: if amministratore() &&
+        resource.data.stato == 'IN_CORSO' &&
+        resource.data.amministratore == request.auth.uid &&
+        soloCampi(['stato', 'identificativo', 'amministratore',
+                   'versioneApp', 'versioneSchema', 'iniziatoIl',
+                   'completatoIl', 'conteggi']) &&
+        nuovo().stato == 'COMPLETO' &&
+        nuovo().identificativo == resource.data.identificativo &&
+        nuovo().amministratore == resource.data.amministratore &&
+        nuovo().versioneApp == resource.data.versioneApp &&
+        nuovo().versioneSchema == resource.data.versioneSchema &&
+        nuovo().iniziatoIl == resource.data.iniziatoIl &&
+        nuovo().completatoIl is timestamp &&
+        nuovo().conteggi is map &&
+        // tutte le chiavi previste, nessuna in piu' e nessuna in meno
+        nuovo().conteggi.keys().hasOnly(STORE_CONDIVISI_()) &&
+        nuovo().conteggi.keys().hasAll(STORE_CONDIVISI_()) &&
+        // e ogni valore deve essere un numero intero non negativo
+        nuovo().conteggi.squadre is int && nuovo().conteggi.squadre >= 0 &&
+        nuovo().conteggi.stagioni is int && nuovo().conteggi.stagioni >= 0 &&
+        nuovo().conteggi.membri is int && nuovo().conteggi.membri >= 0 &&
+        nuovo().conteggi.iscrizioni is int && nuovo().conteggi.iscrizioni >= 0 &&
+        nuovo().conteggi.giornate is int && nuovo().conteggi.giornate >= 0 &&
+        nuovo().conteggi.presenze is int && nuovo().conteggi.presenze >= 0 &&
+        nuovo().conteggi.abbattimenti is int && nuovo().conteggi.abbattimenti >= 0 &&
+        nuovo().conteggi.controlliSanitari is int &&
+          nuovo().conteggi.controlliSanitari >= 0 &&
+        nuovo().conteggi.calendariBattuta is int &&
+          nuovo().conteggi.calendariBattuta >= 0 &&
+        nuovo().conteggi.configCarne is int && nuovo().conteggi.configCarne >= 0 &&
+        nuovo().conteggi.lottiCarne is int && nuovo().conteggi.lottiCarne >= 0 &&
+        nuovo().conteggi.quoteCarne is int && nuovo().conteggi.quoteCarne >= 0 &&
+        nuovo().conteggi.venditeCarne is int && nuovo().conteggi.venditeCarne >= 0 &&
+        nuovo().conteggi.ritiriCarne is int && nuovo().conteggi.ritiriCarne >= 0;
+
+      // Nessuno puo' cancellare l'inizializzazione: farebbe ripartire
+      // il caricamento su un archivio che ha gia' dei dati.
+      allow delete: if false;
+    }
+
+    // Tutto il resto e' chiuso. Una raccolta non dichiarata qui sopra
+    // non e' raggiungibile da nessuno: se un domani se ne aggiunge una,
+    // va scritta qui, altrimenti l'app la trovera' negata.
     match /{documento=**} {
       allow read, write: if false;
     }

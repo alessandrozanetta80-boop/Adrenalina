@@ -88,7 +88,7 @@
           Object.keys(valori).forEach(function (k) { esistente[k] = valori[k]; });
           return App.data.calendari.salva(esistente).then(function () { return esistente; });
         }
-        valori.id = App.core.id.nuovo(App.core.id.CALENDARIO);
+        valori.id = App.core.idDeterministici.calendario(stagioneId);
         valori.stagioneId = stagioneId;
         valori.demo = false;
         var nuovo = App.data.repo.timbraCreazione(valori);

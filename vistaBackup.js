@@ -42,41 +42,58 @@
           '<button class="btn btn-primario btn-largo" id="btn-esporta">Esporta dati</button>' +
         '</div></div>' +
 
-        '<div class="sezione"><h3>Importa</h3><div class="card">' +
-          '<p>Seleziona un backup esportato in precedenza. ' +
-          'L\u2019importazione <strong>sostituisce tutti i dati presenti</strong>.</p>' +
-          '<input type="file" id="f-backup" accept="application/json,.json" class="nascosto">' +
-          '<button class="btn btn-largo" id="btn-importa">Scegli file e importa</button>' +
-        '</div></div>' +
+        C.seModifica(
+          '<div class="sezione"><h3>Importa</h3><div class="card">' +
+            '<p>Seleziona un backup esportato in precedenza. ' +
+            'L\u2019importazione <strong>sostituisce tutti i dati presenti</strong>.</p>' +
+            '<input type="file" id="f-backup" accept="application/json,.json" ' +
+              'class="nascosto">' +
+            '<button class="btn btn-largo" id="btn-importa">Scegli file e importa</button>' +
+          '</div></div>') +
 
-        '<div class="sezione"><h3>Stagione dimostrativa</h3><div class="card">' +
-          '<p style="margin:0 0 10px">Carica <strong>gennaio 2026</strong>: sette battute ' +
-          'vere della squadra, con presenze, capi, carne divisa, venduta e messa da parte ' +
-          'per i salamini, compensazioni e ospite. Serve a far vedere come lavora l\u2019app ' +
-          'su una stagione intera.</p>' +
-          '<button class="btn btn-contorno" id="btn-carica-gennaio">' +
-          'Carica gennaio 2026</button>' +
-        '</div></div>' +
-
-        '<div class="sezione"><h3>Dati di prova</h3><div class="card">' +
-          (totDemo === 0
-            ? '<p>Nessun dato di prova presente.</p>'
-            : '<p>Presenti <strong>' + totDemo + '</strong> record di prova: ' +
-              ant.conteggi.squadre + ' squadra, ' + ant.conteggi.stagioni + ' stagione, ' +
-              ant.conteggi.membri + ' soci, ' + ant.conteggi.iscrizioni + ' iscrizioni, ' +
-              ant.conteggi.giornate + ' giornate, ' + ant.conteggi.presenze + ' presenze, ' +
-              ant.conteggi.abbattimenti + ' capi, ' +
-              ant.conteggi.controlliSanitari + ' controlli sanitari.</p>') +
-          (totDemo > 0 && !ant.puoProcedere
-            ? '<div class="avviso-box pericolo">Eliminazione non possibile: ' +
-              'lascerebbe dati reali senza riferimenti.<ul>' +
-              ant.problemi.map(function (p) { return '<li>' + C.esc(p) + '</li>'; }).join('') +
-              '</ul></div>'
-            : '') +
-          '<button class="btn btn-pericolo btn-largo" id="btn-demo" style="margin-top:10px"' +
-            (totDemo === 0 || !ant.puoProcedere ? ' disabled' : '') +
-            '>Elimina dati di prova</button>' +
-        '</div></div>' +
+        C.seModifica(
+          '<div class="sezione"><h3>Sincronizzazione</h3><div class="lista">' +
+            '<button class="voce" data-vai="#/sincronizzazione">' +
+              '<span class="principale">' +
+                '<span class="titolo">Stato e conflitti</span>' +
+                '<span class="sotto">' +
+                  (App.core.modalita.condivisa()
+                    ? 'archivio condiviso con la squadra'
+                    : 'questo telefono lavora da solo') +
+                '</span>' +
+              '</span>' +
+              '<span class="freccia">&#8250;</span>' +
+            '</button>' +
+          '</div></div>' +
+  
+          '<div class="sezione"><h3>Stagione dimostrativa</h3><div class="card">' +
+            '<p style="margin:0 0 10px">Carica <strong>gennaio 2026</strong>: sette battute ' +
+            'vere della squadra, con presenze, capi, carne divisa, venduta e messa da parte ' +
+            'per i salamini, compensazioni e ospite. Serve a far vedere come lavora l\u2019app ' +
+            'su una stagione intera.</p>' +
+            '<button class="btn btn-contorno" id="btn-carica-gennaio">' +
+            'Carica gennaio 2026</button>' +
+          '</div></div>' +
+  
+          '<div class="sezione"><h3>Dati di prova</h3><div class="card">' +
+            (totDemo === 0
+              ? '<p>Nessun dato di prova presente.</p>'
+              : '<p>Presenti <strong>' + totDemo + '</strong> record di prova: ' +
+                ant.conteggi.squadre + ' squadra, ' + ant.conteggi.stagioni + ' stagione, ' +
+                ant.conteggi.membri + ' soci, ' + ant.conteggi.iscrizioni + ' iscrizioni, ' +
+                ant.conteggi.giornate + ' giornate, ' + ant.conteggi.presenze + ' presenze, ' +
+                ant.conteggi.abbattimenti + ' capi, ' +
+                ant.conteggi.controlliSanitari + ' controlli sanitari.</p>') +
+            (totDemo > 0 && !ant.puoProcedere
+              ? '<div class="avviso-box pericolo">Eliminazione non possibile: ' +
+                'lascerebbe dati reali senza riferimenti.<ul>' +
+                ant.problemi.map(function (p) { return '<li>' + C.esc(p) + '</li>'; }).join('') +
+                '</ul></div>'
+              : '') +
+            '<button class="btn btn-pericolo btn-largo" id="btn-demo" style="margin-top:10px"' +
+              (totDemo === 0 || !ant.puoProcedere ? ' disabled' : '') +
+              '>Elimina dati di prova</button>' +
+          '</div></div>') +
 
         '<p class="nota-piede">Schema dati versione ' + App.versione.SCHEMA_VERSION +
         ' — app versione ' + C.esc(App.versione.APP_VERSION) + '</p>');
@@ -89,12 +106,16 @@
       });
 
       var input = document.getElementById('f-backup');
-      document.getElementById('btn-importa').addEventListener('click', function () {
-        input.value = '';
-        input.click();
-      });
+      void input;
+      var bottoneImporta = document.getElementById('btn-importa');
+      if (bottoneImporta) {
+        bottoneImporta.addEventListener('click', function () {
+          input.value = '';
+          input.click();
+        });
+      }
 
-      input.addEventListener('change', function () {
+      if (input) input.addEventListener('change', function () {
         var file = input.files && input.files[0];
         if (!file) return;
         leggiFile(file).then(function (oggetto) {
@@ -131,7 +152,8 @@
         }).catch(function (e) { C.toast(e.message, 'errore'); });
       });
 
-      document.getElementById('btn-carica-gennaio').addEventListener('click', function () {
+      var btnGennaio = document.getElementById('btn-carica-gennaio');
+      if (btnGennaio) btnGennaio.addEventListener('click', function () {
         var b = document.getElementById('btn-carica-gennaio');
         b.disabled = true;
         Promise.resolve()
@@ -147,7 +169,8 @@
           });
       });
 
-      document.getElementById('btn-demo').addEventListener('click', function () {
+      var btnDemo = document.getElementById('btn-demo');
+      if (btnDemo) btnDemo.addEventListener('click', function () {
         C.conferma({
           titolo: 'Eliminare i dati di prova?',
           testo: 'Verranno eliminati ' + totDemo + ' record contrassegnati come demo. ' +

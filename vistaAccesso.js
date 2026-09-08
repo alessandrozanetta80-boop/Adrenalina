@@ -28,9 +28,13 @@
         (entratoMaFuori
           ? '<div class="avviso-box pericolo blocco-accesso">' +
               '<strong>Accesso non consentito</strong><br>' +
-              'L\u2019account ' + C.esc(st.utente.email) + ' non \u00e8 abilitato. ' +
-              'L\u2019app \u00e8 riservata agli amministratori della squadra.' +
+              'Questo account non \u00e8 ancora autorizzato. Puoi inviare una ' +
+              'richiesta; un amministratore potr\u00e0 concederti l\u2019accesso ' +
+              'in sola lettura oppure come amministratore.' +
             '</div>' +
+            '<button class="btn btn-azione" id="btn-richiedi">' +
+            'Richiedi accesso</button>' +
+            '<div class="errore" id="err-richiesta"></div>' +
             '<button class="btn btn-contorno" id="btn-esci-accesso">' +
             'Esci e prova con un altro account</button>'
           : '<button class="btn btn-azione" id="btn-accedi">Accedi con Google</button>' +
@@ -38,16 +42,29 @@
 
         '<p class="nota-accesso">' +
         (entratoMaFuori
-          ? 'Se pensi che sia un errore, chiedi a un amministratore di ' +
-            'aggiungere il tuo account.'
-          : 'L\u2019app \u00e8 riservata agli amministratori della squadra. ' +
-            'Gli altri account non possono entrare.') +
+          ? 'Account usato: ' + C.esc(st.utente.email) + '.'
+          : 'L\u2019app \u00e8 riservata alle persone autorizzate dalla squadra.') +
         '</p>' +
       '</div>');
 
     var uscita = document.getElementById('btn-esci-accesso');
     if (uscita) {
       uscita.addEventListener('click', function () { A.esci(); });
+
+      var chiedi = document.getElementById('btn-richiedi');
+      if (chiedi) {
+        chiedi.addEventListener('click', function () {
+          chiedi.disabled = true;
+          A.richiediAccesso().then(function () {
+            document.getElementById('err-richiesta').textContent =
+              'Richiesta inviata. Un amministratore deve autorizzarti.';
+            chiedi.textContent = 'Richiesta inviata';
+          }).catch(function (e) {
+            chiedi.disabled = false;
+            document.getElementById('err-richiesta').textContent = e.message;
+          });
+        });
+      }
       return;
     }
 

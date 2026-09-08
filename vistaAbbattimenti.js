@@ -68,10 +68,11 @@
       });
 
       C.monta(
-        '<div class="sezione">' +
-          '<button class="btn btn-azione" data-vai="#/capo/nuovo">' +
-          '+ Nuovo abbattimento</button>' +
-        '</div>' +
+        C.seModifica(
+          '<div class="sezione">' +
+            '<button class="btn btn-azione" data-vai="#/capo/nuovo">' +
+            '+ Nuovo abbattimento</button>' +
+          '</div>') +
         '<div class="sezione">' +
           (dati.righe.length
             ? '<div class="lista">' + dati.righe.map(function (r) {

@@ -160,6 +160,19 @@
   }
 
   // ---------- CREAZIONE / MODIFICA ----------
+  // Decide da dove arriva il progressivo, secondo la modalita' attiva.
+  function codicePerNuovoCapo(stagioneId) {
+    var condivisa = App.core.modalita && App.core.modalita.condivisa();
+    if (!condivisa) return prossimoCodicePerStagione(stagioneId);
+
+    var sync = App.core.modalita.motore();
+    return sync.allocaCodiceCapo(stagioneId).catch(function (e) {
+      void e;
+      throw new Error('Per registrare un nuovo capo serve il collegamento, ' +
+        'perché il codice viene assegnato dalla squadra.');
+    });
+  }
+
   function crea(campi) {
     var errori = valida(campi);
     if (Object.keys(errori).length) { var e = new Error('Dati non validi.'); e.errori = errori; throw e; }
@@ -167,7 +180,16 @@
     return App.data.giornate.perId(campi.giornataId).then(function (giornata) {
       if (!giornata) throw new Error('Giornata non trovata.');
       return verificaTiratore(giornata, campi.tiratoreMembroId).then(function () {
-        return prossimoCodicePerStagione(giornata.stagioneId).then(function (codice) {
+        // IL CODICE DEL CAPO
+        //
+        // In solitaria si continua a calcolarlo dal massimo esistente:
+        // c'e' un solo dispositivo, non puo' esserci contesa.
+        //
+        // In modalita' condivisa NO: due amministratori che registrano
+        // insieme prenderebbero lo stesso numero. Il progressivo lo
+        // assegna una transazione sul contatore remoto, e senza
+        // collegamento la registrazione si ferma invece di inventarlo.
+        return codicePerNuovoCapo(giornata.stagioneId).then(function (codice) {
           var base = campiAbbattimento(campi);
           base.id = App.core.id.nuovo(App.core.id.ABBATTIMENTO);
           base.codiceCapo = codice;
@@ -324,6 +346,7 @@
     pesoValido: pesoValido,
     numeroDaCodice: numeroDaCodice,
     formattaCodice: formattaCodice,
+    codicePerNuovoCapo: codicePerNuovoCapo,
     prossimoCodice: prossimoCodice,
     prossimoCodicePerStagione: prossimoCodicePerStagione,
     valida: valida,

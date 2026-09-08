@@ -843,12 +843,69 @@
   }
 
   // Sostituzione totale in una sola transazione. Nessun merge.
+  // SALVATAGGIO DEL FILE
+  //
+  // Il backup preventivo non e' un oggetto in memoria: e' un file che
+  // deve finire sul telefono PRIMA di qualsiasi operazione distruttiva o
+  // di pubblicazione. Sta qui e non nella vista perche' lo usano anche
+  // il bootstrap e la sostituzione dell'archivio, e perche' i test
+  // devono poterlo intercettare per verificare l'ordine.
+  function scaricaBackup(backup, nomeFile) {
+    if (!backup || !backup.dati) {
+      return Promise.reject(new Error('Backup non valido: nessun file salvato.'));
+    }
+    if (typeof document === 'undefined' || !global.Blob || !global.URL ||
+        !global.URL.createObjectURL) {
+      return Promise.reject(new Error(
+        'Non è possibile salvare il file di backup su questo dispositivo.'));
+    }
+    var testo = JSON.stringify(backup, null, 2);
+    var blob = new global.Blob([testo], { type: 'application/json' });
+    var url = global.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nomeFile || nomeFileBackup(backup);
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { global.URL.revokeObjectURL(url); }, 1500);
+    return Promise.resolve({ nomeFile: a.download, byte: testo.length });
+  }
+
+  // Crea il backup, lo valida e lo salva sul telefono. Se una delle tre
+  // cose fallisce, chi ha chiamato NON deve procedere.
+  function backupPreventivo() {
+    return costruisciBackup().then(function (backup) {
+      if (!backup || !backup.dati) {
+        throw new Error('Impossibile creare il backup di sicurezza.');
+      }
+      // Le avvertenze non fermano il salvataggio: il backup serve
+      // proprio a conservare anche dati imperfetti.
+      backup.avvertenze = validaBackup(backup);
+      return scaricaBackup(backup).then(function (esito) {
+        return { backup: backup, file: esito };
+      });
+    });
+  }
+
   function importaBackup(oggetto) {
     function rifiuta(errori) {
       var e = new Error(errori.join(' '));
       e.errori = errori;
       throw e;
     }
+
+    // Il ripristino svuota gli store e li riscrive. In locale va bene:
+    // l'archivio e' solo di questo telefono. Con l'archivio condiviso
+    // no: lo svuotamento non produce cancellazioni remote, quindi il
+    // dispositivo si troverebbe con dati diversi dagli altri e li
+    // rimanderebbe indietro. Meglio fermarsi prima di toccare qualcosa.
+    if (App.core.modalita && App.core.modalita.condivisa()) {
+      throw new Error('Il ripristino completo di un backup non è disponibile ' +
+        'mentre l\u2019archivio condiviso è attivo. L\u2019esportazione ' +
+        'invece funziona come sempre.');
+    }
+
     var errori = validaInvolucro(oggetto);
     if (errori.length) rifiuta(errori);
 
@@ -1080,6 +1137,9 @@
 
   App.core.backup = {
     costruisciBackup: costruisciBackup,
+    scaricaBackup: scaricaBackup,
+    backupPreventivo: backupPreventivo,
+    nomeFileBackup: nomeFileBackup,
     nomeFileBackup: nomeFileBackup,
     validaBackup: validaBackup,
     validaInvolucro: validaInvolucro,

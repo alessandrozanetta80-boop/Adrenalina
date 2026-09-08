@@ -185,6 +185,15 @@
     // sincronizzazione ne' il registro: sono di questo dispositivo.
     nomiStoreBackup: STORES.map(function (s) { return s.nome; })
       .filter(function (n) { return n !== 'outbox' && n !== 'audit'; }),
+
+    // Gli store che viaggiano fra i dispositivi. "meta" resta fuori:
+    // contiene informazioni di questo telefono (versione dello schema,
+    // squadra corrente, presenza dei dati di prova) e non ha nemmeno un
+    // campo id, perche' e' indicizzato per chiave.
+    nomiStoreCondivisi: STORES.map(function (s) { return s.nome; })
+      .filter(function (n) {
+        return n !== 'outbox' && n !== 'audit' && n !== 'meta';
+      }),
     // Store che contengono record marcabili demo.
     nomiStoreDemo: ['squadre', 'stagioni', 'membri', 'iscrizioni',
                     'giornate', 'presenze', 'abbattimenti', 'controlliSanitari',

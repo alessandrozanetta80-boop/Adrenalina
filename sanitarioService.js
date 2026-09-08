@@ -79,7 +79,7 @@
               .then(function () { return esistente; });
           }
 
-          valori.id = App.core.id.nuovo(App.core.id.CONTROLLO);
+          valori.id = App.core.idDeterministici.controlloSanitario(abbattimentoId);
           valori.abbattimentoId = abbattimentoId;
           valori.demo = false;
           var nuovo = App.data.repo.timbraCreazione(valori);

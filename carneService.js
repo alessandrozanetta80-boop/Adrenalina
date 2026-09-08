@@ -112,7 +112,7 @@
         return App.data.configCarne.salva(esistente).then(function () { return esistente; });
       }
       var nuovo = App.data.repo.timbraCreazione({
-        id: App.core.id.nuovo(App.core.id.CONFIG_CARNE),
+        id: App.core.idDeterministici.configCarne(stagioneId),
         stagioneId: stagioneId,
         obbligoVenditaGrammi: campi.obbligoVenditaGrammi,
         prezziCentKg: prezzi,
@@ -199,7 +199,7 @@
 
     return righe.map(function (r) {
       return App.data.repo.timbraCreazione({
-        id: App.core.id.nuovo(App.core.id.QUOTA_CARNE),
+        id: App.core.idDeterministici.quotaCarne(lottoId, r.membro.id),
         lottoCarneId: lottoId,
         membroId: r.membro.id,
         quotaSpettanteGrammi: quotaPer[r.membro.id] || 0,
@@ -232,7 +232,7 @@
             'registra prima i partecipanti alla battuta.');
         }
         var lotto = App.data.repo.timbraCreazione({
-          id: App.core.id.nuovo(App.core.id.LOTTO_CARNE),
+          id: App.core.idDeterministici.lottoCarne(giornataId),
           giornataId: giornataId,
           squadraId: giornata.squadraId,
           stagioneId: giornata.stagioneId,

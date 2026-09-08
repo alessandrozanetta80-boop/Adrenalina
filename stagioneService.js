@@ -5,7 +5,7 @@
 
   function nuovaIscrizione(campi) {
     return App.data.repo.timbraCreazione({
-      id: App.core.id.nuovo(App.core.id.ISCRIZIONE),
+      id: App.core.idDeterministici.iscrizione(campi.stagioneId, campi.membroId),
       stagioneId: campi.stagioneId,
       membroId: campi.membroId,
       ruoliVenatori: campi.ruoliVenatori && campi.ruoliVenatori.length

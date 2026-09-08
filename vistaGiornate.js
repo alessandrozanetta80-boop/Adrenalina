@@ -63,8 +63,9 @@
       if (!ctx.stagioneAttiva) {
         C.monta('<div class="vuoto"><h2>Nessuna stagione attiva</h2>' +
           '<p>Le giornate appartengono a una stagione. Attivane una per continuare.</p></div>' +
-          '<div class="sezione"><button class="btn btn-contorno" data-vai="#/stagioni">' +
-          'Vai a Stagioni</button></div>');
+          C.seModifica('<div class="sezione">' +
+            '<button class="btn btn-contorno" data-vai="#/stagioni">' +
+            'Vai a Stagioni</button></div>'));
         return;
       }
 
@@ -74,8 +75,9 @@
         if (!dati.configurazione) {
           C.monta('<div class="avviso-box">Il calendario delle battute non è ancora ' +
             'configurato per questa stagione.</div>' +
-            '<div class="sezione"><button class="btn btn-contorno" data-vai="#/stagioni">' +
-            'Configura in Amministrazione</button></div>');
+            C.seModifica('<div class="sezione">' +
+              '<button class="btn btn-contorno" data-vai="#/stagioni">' +
+              'Configura in Amministrazione</button></div>'));
           return;
         }
 
@@ -83,9 +85,14 @@
         // le date sono derivate dalla configurazione della stagione.
         function riga(r) {
           var passata = r.data < oggi;
+          // Una giornata gia' preparata si apre sempre. Una data ancora
+          // vuota porta al modulo di creazione: a chi legge soltanto
+          // non serve, quindi la riga non e' toccabile.
+          var soloConsultazione = !!(App.core.accesso.attivo() &&
+            App.core.accesso.lettore && App.core.accesso.lettore());
           var vai = r.giornata
             ? '#/giornata/' + r.giornata.id
-            : '#/giornata/nuova/' + r.data;
+            : (soloConsultazione ? null : '#/giornata/nuova/' + r.data);
           // La data e' l'informazione principale; il resto e' secondario
           // e sta su una sola riga, per non gonfiare l'elenco.
           var dettaglio = '';
@@ -95,7 +102,7 @@
             if (r.lotto) dettaglio += ' · carne registrata';
           }
           return '<button class="voce voce-data' + (passata ? ' passata' : '') +
-            '" data-vai="' + vai + '">' +
+            (vai ? '" data-vai="' + vai + '">' : '" disabled>') +
             '<span class="principale">' +
               '<span class="titolo">' + C.esc(breve(r.data)) + '</span>' +
               (dettaglio ? '<span class="sotto">' + C.esc(dettaglio) + '</span>' : '') +

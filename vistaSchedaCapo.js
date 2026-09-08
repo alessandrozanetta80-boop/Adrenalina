@@ -49,8 +49,9 @@
               ? '<div class="striscia-annullato">✕ Abbattimento annullato</div>'
               : '') +
           '</div>' +
-          '<button class="btn btn-contorno" data-vai="#/capo/' + C.esc(a.id) +
-            '/modifica" style="margin-top:12px">Modifica</button>' +
+          C.seModifica(
+            '<button class="btn btn-contorno" data-vai="#/capo/' + C.esc(a.id) +
+              '/modifica" style="margin-top:12px">Modifica</button>') +
         '</div>' +
 
         '<div class="sezione"><h3>Giornata</h3><div class="card"><dl class="dettaglio">' +
@@ -111,20 +112,23 @@
               '</dl>'
             : '<p class="tenue" style="margin:10px 0 0">Nessun controllo registrato ' +
               'per questo capo.</p>') +
-          '<button class="btn btn-largo" data-vai="#/capo/' + C.esc(a.id) +
-          '/sanitario" style="margin-top:12px">Gestisci controllo sanitario</button>' +
+          C.seModifica(
+            '<button class="btn btn-largo" data-vai="#/capo/' + C.esc(a.id) +
+            '/sanitario" style="margin-top:12px">Gestisci controllo sanitario</button>') +
         '</div></div>' +
 
-        '<div class="sezione zona-pericolo">' +
-          '<button class="btn' + (a.annullato ? ' btn-primario' : ' btn-pericolo-tenue') +
-            '" id="btn-annulla-capo">' +
-            (a.annullato ? 'Ripristina abbattimento' : 'Annulla abbattimento') +
-          '</button>' +
-          '<p class="nota-piede">I capi non vengono mai cancellati: si annullano. ' +
-          'Un capo annullato resta in archivio con il suo codice.</p>' +
-        '</div>');
+        C.seModifica(
+          '<div class="sezione zona-pericolo">' +
+            '<button class="btn' + (a.annullato ? ' btn-primario' : ' btn-pericolo-tenue') +
+              '" id="btn-annulla-capo">' +
+              (a.annullato ? 'Ripristina abbattimento' : 'Annulla abbattimento') +
+            '</button>' +
+            '<p class="nota-piede">I capi non vengono mai cancellati: si annullano. ' +
+            'Un capo annullato resta in archivio con il suo codice.</p>' +
+          '</div>'));
 
-      document.getElementById('btn-annulla-capo').addEventListener('click', function () {
+      var btnAnnullaCapo = document.getElementById('btn-annulla-capo');
+      if (btnAnnullaCapo) btnAnnullaCapo.addEventListener('click', function () {
         if (a.annullato) {
           App.core.capo.impostaAnnullato(a.id, false).then(function () {
             C.toast('Abbattimento ripristinato.');

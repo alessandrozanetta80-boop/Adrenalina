@@ -127,7 +127,7 @@
       }
 
       var nuova = App.data.repo.timbraCreazione({
-        id: App.core.id.nuovo(App.core.id.PRESENZA),
+        id: App.core.idDeterministici.presenza(giornataId, membroId),
         giornataId: giornataId,
         membroId: membroId,
         stato: stato,

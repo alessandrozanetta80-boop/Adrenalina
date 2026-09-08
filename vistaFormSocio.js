@@ -43,11 +43,11 @@
           '</span></label>';
       }).join('');
 
-      var opzioniLivello = App.costanti.LIVELLI_ACCESSO.map(function (l) {
-        var sel = m ? m.livelloAccessoApp === l.codice : l.codice === App.costanti.LIVELLO_PREDEFINITO;
-        return '<option value="' + l.codice + '"' + (sel ? ' selected' : '') + '>' +
-          C.esc(l.etichetta) + '</option>';
-      }).join('');
+      // Il livello di accesso storico non decide piu' nulla: chi entra
+      // e cosa puo' fare lo dice /accessi. Il campo resta nel modello
+      // per non rompere i dati esistenti, ma non si chiede piu'.
+      var livelloConservato = m
+        ? m.livelloAccessoApp : App.costanti.LIVELLO_PREDEFINITO;
 
       C.monta(
         '<div class="sezione"><h3>Dati personali</h3>' +
@@ -69,10 +69,6 @@
             '<div class="gruppo-caselle">' + caselleRuoli + '</div>' +
             '<div class="aiuto">Un socio può ricoprire più ruoli nella stessa stagione.</div>' +
             '<div class="errore" id="err-ruoli"></div>' +
-          '</div>' +
-          '<div class="campo"><label for="f-livello">Livello di accesso app</label>' +
-            '<select id="f-livello">' + opzioniLivello + '</select>' +
-            '<div class="aiuto">Indipendente dal ruolo venatorio.</div>' +
           '</div>' +
           '<label class="interruttore"><input type="checkbox" id="f-attivo"' +
             (!m || m.attivo ? ' checked' : '') + '><span>Socio attivo</span></label>' +
@@ -118,7 +114,7 @@
           dataNascita: document.getElementById('f-nascita').value || null,
           telefono: document.getElementById('f-telefono').value,
           note: document.getElementById('f-note').value,
-          livelloAccessoApp: document.getElementById('f-livello').value,
+          livelloAccessoApp: livelloConservato,
           attivo: document.getElementById('f-attivo').checked,
           ospite: document.getElementById('f-ospite').checked,
           scadenzaPortoArmi: document.getElementById('f-porto').value || null,

@@ -52,7 +52,14 @@
 
         return Promise.all([
           App.core.capo.candidatiTiratore(giornataIniziale, capo ? capo.tiratoreMembroId : null),
-          nuovo ? K.prossimoCodicePerStagione(idStagione) : Promise.resolve(capo.codiceCapo)
+          // In modalita' condivisa il numero lo assegna la squadra al
+          // salvataggio: mostrarne uno calcolato qui sarebbe una bugia,
+          // perche' un altro amministratore potrebbe prenderlo prima.
+          nuovo
+            ? (App.core.modalita && App.core.modalita.condivisa()
+                ? Promise.resolve(null)
+                : K.prossimoCodicePerStagione(idStagione))
+            : Promise.resolve(capo.codiceCapo)
         ]).then(function (r) {
           var candidati = r[0];
           var codice = r[1];
@@ -91,7 +98,8 @@
             '<div class="sezione">' +
               '<div class="codice-capo-grande">' +
                 '<span class="etichetta">Codice capo</span>' +
-                '<span class="valore">' + C.esc(codice) + '</span>' +
+                '<span class="valore">' +
+                  (codice ? C.esc(codice) : '—') + '</span>' +
                 (nuovo ? '<span class="nota">assegnato al salvataggio</span>' : '') +
               '</div>' +
             '</div>' +

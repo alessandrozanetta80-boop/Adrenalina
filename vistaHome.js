@@ -4,6 +4,18 @@
   App.ui.viste = App.ui.viste || {};
   var C = null;
 
+  // Dire dove stanno i dati: in condivisa la vecchia frase era falsa.
+  function doveStannoIDati() {
+    var A = App.core.accesso;
+    if (!App.core.modalita || !App.core.modalita.condivisa()) {
+      return 'dati salvati su questo dispositivo';
+    }
+    if (A.lettore && A.lettore()) {
+      return 'archivio condiviso della squadra · sola lettura';
+    }
+    return 'archivio condiviso della squadra';
+  }
+
   function render() {
     C = App.ui.componenti;
     return Promise.all([
@@ -112,8 +124,9 @@
               (daPreparare
                 ? '<div class="zona da-preparare">Da compilare</div>' +
                   '<div class="meta">Nessuna battuta ancora preparata per questa data.</div>' +
-                  '<button class="btn btn-azione" data-vai="#/giornata/nuova/' +
-                    C.esc(dataProssima) + '">Prepara giornata</button>'
+                  C.seModifica(
+                    '<button class="btn btn-azione" data-vai="#/giornata/nuova/' +
+                    C.esc(dataProssima) + '">Prepara giornata</button>')
                 : '<div class="zona">' + C.esc(prossima.zona || 'Zona non indicata') + '</div>' +
                   '<div class="meta">' +
                     (prossima.orarioRitrovo
@@ -180,15 +193,29 @@
         '<div class="sezione">' +
           '<h3>Amministrazione</h3>' +
           '<div class="lista">' +
-            '<button class="voce" data-vai="#/stagioni">' +
-              '<span class="principale"><span class="titolo">Stagioni</span>' +
-              '<span class="sotto">' + C.esc(ctx.stagioneAttiva ? ctx.stagioneAttiva.nome : '—') +
-              '</span></span>' +
-              '<span class="freccia">&#8250;</span>' +
-            '</button>' +
+            (App.core.accesso.attivo() && App.core.accesso.amministratore()
+              ? '<a class="voce" href="#/accessi">' +
+                  '<span class="principale">' +
+                    '<span class="titolo">Gestione accessi</span>' +
+                    '<span class="sotto">chi può entrare e cosa può fare</span>' +
+                  '</span><span class="freccia">›</span></a>'
+              : '') +
+            C.seModifica(
+              '<button class="voce" data-vai="#/stagioni">' +
+                '<span class="principale"><span class="titolo">Stagioni</span>' +
+                '<span class="sotto">' +
+                C.esc(ctx.stagioneAttiva ? ctx.stagioneAttiva.nome : '—') +
+                '</span></span>' +
+                '<span class="freccia">&#8250;</span>' +
+              '</button>') +
             '<button class="voce" data-vai="#/backup">' +
               '<span class="principale"><span class="titolo">Backup dati</span>' +
-              '<span class="sotto">esporta o importa l\u2019archivio</span></span>' +
+              '<span class="sotto">' +
+                (App.core.accesso.attivo() && App.core.accesso.lettore &&
+                 App.core.accesso.lettore()
+                  ? 'esporta l\u2019archivio'
+                  : 'esporta o importa l\u2019archivio') +
+              '</span></span>' +
               '<span class="freccia">&#8250;</span>' +
             '</button>' +
             '<button class="voce" disabled>' +
@@ -205,7 +232,7 @@
         '</div>' +
 
         '<p class="nota-piede">Adrenalina v' + C.esc(App.versione.APP_VERSION) +
-        ' — dati salvati solo su questo dispositivo</p>');
+        ' — ' + doveStannoIDati() + '</p>');
 
       var btnEsci = document.getElementById('btn-esci');
       if (btnEsci) {

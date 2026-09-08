@@ -45,6 +45,17 @@
     });
   }
 
+  // Il service worker fa partire l'app anche senza campo, dopo che e'
+  // stata aperta almeno una volta. Non serve a sincronizzare: quello lo
+  // fa la coda. Se il browser non lo supporta, l'app funziona lo stesso.
+  function registraServiceWorker() {
+    if (!global.navigator || !global.navigator.serviceWorker) return;
+    if (global.location && global.location.protocol === 'file:') return;
+    global.navigator.serviceWorker.register('sw.js').catch(function (e) {
+      if (global.console) global.console.warn('Avvio offline non disponibile:', e.message);
+    });
+  }
+
   function avvia() {
     // L'accesso si prepara per primo: se e' richiesto, il router mostra
     // la schermata di login invece dei dati.
@@ -53,13 +64,41 @@
         // Chi non e' autorizzato non deve vedere nessun dato, nemmeno
         // quelli locali: non si crea niente e non si legge niente.
         if (!App.core.accesso.autorizzato()) return null;
+
+        // ORDINE DI AVVIO
+        //
+        // Con l'archivio condiviso, l'archivio della squadra ha la
+        // precedenza: prima ci si collega e si scarica, poi si guarda
+        // cosa c'e'. Creare i dati dimostrativi su un telefono nuovo
+        // prima del download significherebbe mescolarli a quelli veri,
+        // perche' il download aggiunge, non sostituisce.
+        //
+        // Se il remoto e' ancora vuoto non si inventa niente: l'archivio
+        // condiviso verra' popolato dalla migrazione iniziale, non da
+        // ogni telefono per conto suo.
+        if (App.core.accesso.attivo()) {
+          return App.core.modalita.aggiorna();
+        }
+
+        // Senza archivio condiviso vale il comportamento di sempre:
+        // database vuoto, dati dimostrativi locali.
         return App.seed.datiDemo.inizializzaSeNecessario();
       })
       .then(function () {
         App.ui.router.avvia();
+        registraServiceWorker();
         controllaVersione();
-        // Entrare o uscire cambia cosa si puo' vedere: si ridisegna.
-        App.core.accesso.suCambio(function () { App.ui.router.disegna(); });
+        // Entrare o uscire cambia cosa si puo' vedere, e anche se
+        // l'archivio e' condiviso o solo di questo dispositivo.
+        App.core.accesso.suCambio(function () {
+          App.core.modalita.aggiorna().then(function () {
+            App.ui.router.disegna();
+          });
+        });
+        // In modalita' condivisa e' gia' stata attivata sopra, prima
+        // di qualsiasi dato locale.
+        if (App.core.accesso.attivo()) return undefined;
+        return App.core.modalita.aggiorna();
       })
       .catch(function (e) {
         if (global.console) global.console.error(e);

@@ -24,7 +24,7 @@
 
   // NON esiste piu' un elenco di email nel frontend.
   // Chi puo' entrare lo dice esclusivamente il database: esiste il
-  // documento /amministratori/{uid}? Allora entra. Altrimenti no.
+  // documento /accessi/{uid}? Dice anche con quale ruolo.
   // Togliendo quel documento la persona non entra piu' al riavvio
   // successivo, senza toccare il codice.
 

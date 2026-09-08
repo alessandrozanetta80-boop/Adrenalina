@@ -168,6 +168,15 @@
     });
   }
 
+  // Comando riservato a chi puo' modificare. Restituisce stringa vuota
+  // per chi ha accesso in sola lettura, cosi' l'interfaccia non mostra
+  // pulsanti che poi verrebbero rifiutati.
+  function seModifica(html) {
+    var A = App.core.accesso;
+    if (A && A.attivo() && A.lettore && A.lettore()) return '';
+    return html;
+  }
+
   function intestazione(opzioni) {
     if (typeof document === 'undefined' || !document) return;
     var testa = document.getElementById('intestazione');
@@ -218,6 +227,7 @@
     conferma: conferma,
     chiediNumero: chiediNumero,
     intestazione: intestazione,
+    seModifica: seModifica,
     monta: monta,
     erroreSchermo: erroreSchermo
   };

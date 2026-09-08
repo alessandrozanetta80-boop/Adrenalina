@@ -58,13 +58,21 @@
         return n;
       }
 
+      // Per chi puo' modificare la riga e' un comando: si tocca per
+      // cambiare la presenza. Per chi legge soltanto e' una riga di
+      // elenco, senza niente da premere.
+      var soloConsultazione = !!(App.core.accesso.attivo() &&
+        App.core.accesso.lettore && App.core.accesso.lettore());
+
       function rigaPartecipante(r) {
         var s = SEGNO[r.stato] || SEGNO.NON_SEGNATO;
         var ruoli = r.ruoli && r.ruoli.length ? C.etichettaRuoli(r.ruoli) : '';
         return '<div class="riga-partecipante ' + s.classe + '" data-membro="' +
           C.esc(r.membro.id) + '" data-occupata="no" aria-busy="false">' +
+          (soloConsultazione ? '<span class="tocco">' : '') +
+          (soloConsultazione ? '' :
           '<button type="button" class="tocco" aria-pressed="' +
-            (r.stato === SP.PRESENTE ? 'true' : 'false') + '">' +
+            (r.stato === SP.PRESENTE ? 'true' : 'false') + '">') +
             '<span class="segno">' + s.simbolo + '</span>' +
             '<span class="chi">' +
               '<span class="nome">' + C.esc(C.nomeCompleto(r.membro)) + '</span>' +
@@ -114,8 +122,9 @@
             ? '<div class="lista elenco-partecipanti">' +
               righe.map(rigaPartecipante).join('') + '</div>'
             : '<p class="nota-piede">Nessun socio iscritto a questa stagione.</p>') +
-          '<a class="collegamento-tenue" href="#/giornata/' + C.esc(g.id) +
-          '/presenze">Vista estesa</a>' +
+          C.seModifica(
+            '<a class="collegamento-tenue" href="#/giornata/' + C.esc(g.id) +
+            '/presenze">Vista estesa</a>') +
         '</div>' +
 
         // --- C. abbattimenti ---
@@ -142,8 +151,9 @@
                 '</button>';
               }).join('') + '</div>'
             : '<p class="nota-piede">Nessun capo registrato in questa giornata.</p>') +
-          '<button class="btn btn-contorno" data-vai="#/capo/nuovo/' + C.esc(g.id) +
-          '" style="margin-top:12px">+ Registra abbattimento</button>' +
+          C.seModifica(
+            '<button class="btn btn-contorno" data-vai="#/capo/nuovo/' + C.esc(g.id) +
+            '" style="margin-top:12px">+ Registra abbattimento</button>') +
         '</div>' +
 
         // --- C-bis. carne della battuta ---
@@ -153,8 +163,9 @@
           if (!c) {
             return '<div class="sezione"><h3>Carne della battuta</h3>' +
               '<p class="nota-piede">Carne non registrata.</p>' +
-              '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
-              '/carne">Registra carne</button></div>';
+              C.seModifica(
+                '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
+                '/carne">Registra carne</button>') + '</div>';
           }
           var quota = c.numeroPartecipanti
             ? Math.floor(c.disponibileGrammi / c.numeroPartecipanti) : 0;
@@ -172,8 +183,9 @@
                 C.esc(App.core.quote.formattaEuro(c.ricavoTotaleCent)) + '</strong>') +
               riga('Credito maturato', C.esc(K.formattaKg(credito)) + ' a testa') +
             '</dl>' +
-            '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
-            '/carne" style="margin-top:12px">Gestisci carne</button>' +
+            C.seModifica(
+              '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
+              '/carne" style="margin-top:12px">Gestisci carne</button>') +
             '</div></div>';
         })() +
 
@@ -184,14 +196,15 @@
           : '') +
 
         // --- E. azioni secondarie ---
-        '<div class="sezione pila">' +
-          '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
-            '/modifica">Modifica giornata</button>' +
-          (pacchetto.eliminazione.puoEliminare
-            ? '<button class="btn btn-pericolo-tenue" id="btn-elimina-giornata">' +
-              'Elimina giornata</button>'
-            : '') +
-        '</div>' +
+        C.seModifica(
+          '<div class="sezione pila">' +
+            '<button class="btn btn-contorno" data-vai="#/giornata/' + C.esc(g.id) +
+              '/modifica">Modifica giornata</button>' +
+            (pacchetto.eliminazione.puoEliminare
+              ? '<button class="btn btn-pericolo-tenue" id="btn-elimina-giornata">' +
+                'Elimina giornata</button>'
+              : '') +
+          '</div>') +
         (pacchetto.eliminazione.bloccoCarne
           ? '<p class="nota-piede">Questa giornata ha la carne registrata: ' +
             'si può annullare, non eliminare.</p>'
@@ -225,7 +238,9 @@
       }
 
       // ---------- interazione sui partecipanti ----------
-      var elenco = document.querySelector('.elenco-partecipanti');
+      // Al lettore l'elenco non risponde: non c'e' niente da toccare.
+      var elenco = soloConsultazione
+        ? null : document.querySelector('.elenco-partecipanti');
       if (!elenco) return;
 
       function aggiornaConta() {

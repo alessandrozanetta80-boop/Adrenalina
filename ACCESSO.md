@@ -1,122 +1,82 @@
-# Attivare l'accesso — Adrenalina
+# Accesso e archivio condiviso
 
-Finché non fai questi passaggi **l'app funziona come sempre**: tutto in locale,
-nessun login, nessuna rete. L'accesso si accende solo compilando la
-configurazione al punto 4.
+Questo file è un riepilogo. Le istruzioni operative complete stanno in
+**`FIREBASE-ATTIVAZIONE.md`**: se devi accendere Firebase, apri quello.
 
-Serve un account Google. Tempo: una ventina di minuti.
+## Come funziona l'app oggi (versione 0.8.0)
 
----
+**Senza Firebase configurato** l'app funziona in locale, come ha sempre
+fatto: nessun login, nessuna rete, i dati sul telefono. Al primo avvio
+crea i dati dimostrativi.
 
-## 1. Creare il progetto
+**Con Firebase configurato** l'app chiede l'accesso con Google. Entrano
+solo le persone che hanno un documento in `/accessi`: chiunque
+altro, anche dopo essersi autenticato, vede «Accesso non consentito» e
+nessun dato.
 
-1. Vai su `console.firebase.google.com` e accedi.
-2. **Crea un progetto** → nome: `adrenalina` → Continua.
-3. Google Analytics: **disattivalo**. Non serve e aggiunge tracciamento.
-4. Attendi la creazione, poi **Continua**.
+Da quel momento i dati **si sincronizzano** fra i telefoni degli
+amministratori. L'app continua a funzionare senza campo: le modifiche
+restano in coda e partono da sole quando torna la linea.
 
-## 2. Attivare l'accesso con Google
+## Chi decide chi entra, e con quale ruolo
 
-1. Menu a sinistra → **Authentication** → **Inizia**.
-2. Scheda **Sign-in method** → **Google** → attiva l'interruttore.
-3. Email di assistenza: scegli la tua. → **Salva**.
+Non un elenco nel codice: il database. La voce `/accessi/{identificativo}`
+dice se entri e cosa puoi fare.
 
-## 3. Autorizzare l'indirizzo dell'app
+**Amministratore** — vede e modifica tutto, gestisce gli accessi.
+**Sola lettura** — vede tutto, non modifica niente.
+**Nessun accesso** — non entra e non legge nulla.
 
-Senza questo passaggio il login fallisce con «unauthorized domain».
+I primi tre amministratori si creano una volta dalla Console Firebase.
+**Da lì in poi gli accessi si gestiscono dall'app**: Home → Gestione
+accessi. Chi non è autorizzato può premere «Richiedi accesso» dalla
+schermata di blocco; un amministratore lo autorizza o rifiuta.
 
-1. **Authentication** → **Settings** → **Authorized domains**.
-2. **Add domain** → scrivi `alessandrozanetta80-boop.github.io` → Aggiungi.
+Nessuno può modificare il proprio accesso: né promuoversi, né revocarsi.
+Serve un altro amministratore.
 
-`localhost` di solito c'è già: serve per provare dal computer.
+Le regole in `firestore.rules` sono l'unica cosa che protegge davvero i
+dati. Non il repository privato, non la chiave nell'app.
 
-## 4. Prendere la configurazione e metterla nell'app
+## Il primo archivio va inizializzato una volta
 
-1. Ingranaggio in alto a sinistra → **Impostazioni progetto**.
-2. In fondo, **Le tue app** → icona `</>` (**Web**).
-3. Nome app: `Adrenalina` → **Registra app** (non serve l'hosting Firebase).
-4. Compare un riquadro con `firebaseConfig`. Ti servono quattro valori:
-   `apiKey`, `authDomain`, `projectId`, `appId`.
-5. Apri il file **`firebase.js`** del pacchetto e incollali:
+Finché l'archivio condiviso non è stato inizializzato, i telefoni
+lavorano in locale e **non inviano niente**. Un amministratore sceglie il
+telefono che contiene l'archivio buono e lo pubblica una volta sola.
 
-```js
-var CONFIG = {
-  apiKey: 'AIza...',
-  authDomain: 'adrenalina-xxxx.firebaseapp.com',
-  projectId: 'adrenalina-xxxx',
-  appId: '1:123456789:web:abc123'
-};
-```
+Prima di caricare qualsiasi cosa l'app salva un backup completo sul
+telefono. Se il file non si riesce a scrivere, l'operazione non parte.
 
-6. Carica `firebase.js` aggiornato su GitHub.
+Dettagli in **`MIGRAZIONE-INIZIALE.md`**.
 
-**Nel file non c'è nessun elenco di persone.** Chi può entrare lo decide
-solo il database, al punto 7: se esiste il documento con il tuo
-identificativo entri, altrimenti no. Togliendo quel documento la persona
-resta fuori al riavvio successivo, senza toccare il codice.
+## Un telefono che ha già dati propri
 
+Se colleghi un telefono che ha lavorato in locale a un archivio già
+inizializzato, l'app **si ferma** e dice che quel telefono contiene un
+archivio diverso da quello della squadra. Non mescola niente in nessuna
+delle due direzioni.
 
+Per proseguire devi scegliere esplicitamente «Usa archivio condiviso»,
+che salva un backup e poi sostituisce i dati locali con quelli della
+squadra.
 
-## 5. Creare il database
+## Se due modificano la stessa cosa
 
-1. Menu → **Firestore Database** → **Crea database**.
-2. Modalità: **Avvia in modalità di produzione** (chiuso a tutti; apriremo
-   noi al punto 6).
-3. Località: **eur3 (europe-west)**. I dati restano in Europa.
+Sulle presenze vince l'ultima modifica: è un dato semplice da correggere.
 
-## 6. Caricare le regole di sicurezza
+Su carne, vendite, ritiri e capi no: se qualcun altro ha già modificato
+il record, la tua modifica resta **bloccata** e ti viene mostrato perché.
+Non esiste un comando per rimandarla così com'è — riscriverebbe anche i
+campi che l'altro ha cambiato. Puoi scartarla, oppure aprire il dato
+aggiornato e rifarla.
 
-**Questo è il passaggio che protegge davvero i dati.**
+## Backup
 
-1. **Firestore Database** → scheda **Regole**.
-2. Cancella tutto e incolla il contenuto del file **`firestore.rules`**
-   del pacchetto.
-3. **Pubblica**.
+L'esportazione funziona sempre. Il ripristino completo funziona solo in
+modalità locale: con l'archivio condiviso attivo viene rifiutato, perché
+svuoterebbe il telefono senza dirlo agli altri.
 
-Da questo momento entrano **solo** le persone elencate al punto 7.
-Chiunque altro, anche se si autentica con Google, non legge e non scrive
-niente.
+## Dove guardare lo stato
 
-## 7. Dire al database chi può entrare
-
-Le regole cercano un documento con l'identificativo dell'account.
-**Chi non ha il suo documento qui non entra.** Per ognuno dei tre:
-
-1. Fai fare a quella persona **un primo accesso** all'app (dopo il punto 4).
-2. **Authentication** → **Users**: compare la riga con la sua email.
-   Copia il valore della colonna **User UID**.
-3. **Firestore Database** → **Avvia raccolta** → ID raccolta:
-   `amministratori`.
-4. **ID documento**: incolla lo **UID**. Aggiungi un campo qualsiasi, per
-   esempio `email` (stringa) con la sua email, così sai chi è.
-5. **Salva**. Ripeti per gli altri due.
-
-Per togliere l'accesso a qualcuno basta cancellare il suo documento:
-dal ricaricamento successivo non entra più.
-
----
-
-## Provare che funziona
-
-- **Apri l'app in una finestra anonima**: deve chiedere l'accesso.
-- **Entra con un account qualsiasi non in elenco**: deve dire «Accesso non
-  consentito» e mostrare l'email usata, senza far vedere alcun dato.
-- **Entra con uno dei tre**: deve aprire la Home normalmente.
-
-## Cosa NON è ancora attivo
-
-I dati **non si sincronizzano ancora**: restano sul telefono di ciascuno.
-Questo passaggio serve solo a stabilire chi è chi. La sincronizzazione è
-il blocco successivo.
-
-## Se qualcosa va storto
-
-**«unauthorized domain»** → manca il punto 3.
-
-**Il login si apre e si chiude subito** → su alcuni browser di telefono la
-finestra viene bloccata. L'app ripiega da sola sul reindirizzamento; se
-insiste, prova con Chrome.
-
-**Voglio tornare indietro** → svuota i quattro valori in `firebase.js` e
-ricarica il file. L'app torna a funzionare in locale senza login, e i dati
-sul telefono restano dove sono.
+Backup dati → **Sincronizzazione**: modalità, collegamento, ultima
+sincronizzazione, modifiche in attesa, conflitti da risolvere.

@@ -58,10 +58,11 @@
               '</div>'
             : '') +
 
-          '<div class="sezione">' +
-            '<button class="btn btn-contorno" data-vai="#/carne/ritiro">' +
-            'Registra ritiro carne</button>' +
-          '</div>' +
+          C.seModifica(
+            '<div class="sezione">' +
+              '<button class="btn btn-contorno" data-vai="#/carne/ritiro">' +
+              'Registra ritiro carne</button>' +
+            '</div>') +
 
           '<div class="sezione">' +
             '<h3>Soci<span class="contatore">obbligo ' +

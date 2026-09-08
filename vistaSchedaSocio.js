@@ -40,8 +40,9 @@
         sezioneStagione =
           '<div class="avviso-box">Questo socio non è iscritto alla stagione ' +
           C.esc(ctx.stagioneAttiva.nome) + '.</div>' +
-          '<button class="btn btn-primario" id="btn-iscrivi" style="margin-top:10px">' +
-          'Iscrivi alla stagione attiva</button>';
+          C.seModifica(
+            '<button class="btn btn-primario" id="btn-iscrivi" style="margin-top:10px">' +
+            'Iscrivi alla stagione attiva</button>');
       } else {
         sezioneStagione = '<div class="card"><dl class="dettaglio">' +
           riga('Presenze', String(pacchetto.presenze)) +
@@ -75,7 +76,6 @@
           (ctx.stagioneAttiva ? ' — stagione ' + C.esc(ctx.stagioneAttiva.nome) : '') +
           '</h3><div class="card"><dl class="dettaglio">' +
           riga('Ruoli venatori', C.esc(isc ? C.etichettaRuoli(isc.ruoliVenatori) : '—')) +
-          riga('Livello accesso app', C.esc(App.costanti.etichettaLivello(m.livelloAccessoApp))) +
           riga('Attivo', m.attivo ? 'Sì' : 'No') +
           riga('Ospite', isc ? (isc.ospite ? 'Sì' : 'No') : '—') +
         '</dl></div></div>' +
@@ -141,15 +141,17 @@
           '</div>';
         })() +
 
-        '<div class="sezione pila">' +
-          '<button class="btn btn-primario btn-largo" data-vai="#/socio/' + C.esc(m.id) +
-            '/modifica">Modifica</button>' +
-          '<button class="btn' + (m.attivo ? '' : ' btn-primario') + '" id="btn-attivo">' +
-            (m.attivo ? 'Disattiva socio' : 'Riattiva socio') + '</button>' +
-        '</div>' +
-        '<p class="nota-piede">I soci non vengono mai cancellati: si disattivano.</p>');
+        C.seModifica(
+          '<div class="sezione pila">' +
+            '<button class="btn btn-primario btn-largo" data-vai="#/socio/' + C.esc(m.id) +
+              '/modifica">Modifica</button>' +
+            '<button class="btn' + (m.attivo ? '' : ' btn-primario') + '" id="btn-attivo">' +
+              (m.attivo ? 'Disattiva socio' : 'Riattiva socio') + '</button>' +
+          '</div>' +
+          '<p class="nota-piede">I soci non vengono mai cancellati: si disattivano.</p>'));
 
       var btnIscrivi = document.getElementById('btn-iscrivi');
+      var btnAttivo = document.getElementById('btn-attivo');
       if (btnIscrivi) btnIscrivi.addEventListener('click', function () {
         App.core.membro.iscriviAStagioneAttiva(m.id).then(function () {
           C.toast('Socio iscritto alla stagione attiva.');
@@ -157,7 +159,7 @@
         }).catch(function (e) { C.toast(e.message, 'errore'); });
       });
 
-      document.getElementById('btn-attivo').addEventListener('click', function () {
+      if (btnAttivo) btnAttivo.addEventListener('click', function () {
         if (m.attivo) {
           C.conferma({
             titolo: 'Disattivare il socio?',
