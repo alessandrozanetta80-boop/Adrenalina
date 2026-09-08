@@ -547,6 +547,109 @@
   }
 
   // ---------- riepiloghi derivati ----------
+  // GIORNATE DA GESTIRE
+  //
+  // La carne nasce dai capi: se in una battuta e' stato abbattuto
+  // qualcosa, quella giornata compare qui da sola, senza che nessuno
+  // debba ricordarsi di "registrare la carne". Le giornate senza capi
+  // non compaiono: non c'e' niente da dividere.
+  //
+  // Per ogni giornata si mettono insieme cose che stanno gia' in
+  // archivio: i capi con il loro peso, i presenti, e il lotto se e'
+  // gia' stato aperto.
+  function giornateConCapi(stagioneId) {
+    return App.data.repo.leggiStore(['giornate', 'abbattimenti', 'presenze',
+      'lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne', 'membri'])
+      .then(function (d) {
+        var membriPerId = {};
+        d.membri.forEach(function (m) { membriPerId[m.id] = m; });
+
+        var capiPerGiornata = {};
+        d.abbattimenti.forEach(function (a) {
+          if (a.stagioneId !== stagioneId || a.annullato) return;
+          if (!capiPerGiornata[a.giornataId]) capiPerGiornata[a.giornataId] = [];
+          capiPerGiornata[a.giornataId].push(a);
+        });
+
+        var lottoPerGiornata = {};
+        d.lottiCarne.forEach(function (l) { lottoPerGiornata[l.giornataId] = l; });
+
+        var presentiPerGiornata = {};
+        d.presenze.forEach(function (p) {
+          if (p.stato !== 'PRESENTE') return;
+          if (!presentiPerGiornata[p.giornataId]) presentiPerGiornata[p.giornataId] = [];
+          presentiPerGiornata[p.giornataId].push(membriPerId[p.membroId] || null);
+        });
+
+        var righe = d.giornate.filter(function (g) {
+          return g.stagioneId === stagioneId && capiPerGiornata[g.id];
+        }).map(function (g) {
+          var capi = capiPerGiornata[g.id].slice().sort(function (a, b) {
+            return String(a.codiceCapo).localeCompare(String(b.codiceCapo));
+          });
+          var pesoCapi = capi.reduce(function (t, a) {
+            return t + (a.pesoGrammi || 0);
+          }, 0);
+          var presenti = (presentiPerGiornata[g.id] || []).filter(Boolean);
+          var lotto = lottoPerGiornata[g.id] || null;
+
+          var vendite = [], ritiri = [], quote = [];
+          var venduto = 0, uscite = 0, ricavo = 0;
+          if (lotto) {
+            vendite = d.venditeCarne.filter(function (v) {
+              return v.lottoCarneId === lotto.id;
+            });
+            ritiri = d.ritiriCarne.filter(function (r) {
+              return r.lottoCarneId === lotto.id;
+            });
+            quote = d.quoteCarne.filter(function (q) {
+              return q.lottoCarneId === lotto.id;
+            });
+            vendite.forEach(function (v) {
+              if (v.annullata) return;
+              venduto += v.pesoGrammi;
+              ricavo += ricavoCent(v.pesoGrammi, v.prezzoCentKg);
+            });
+            ritiri.forEach(function (r) {
+              if (!r.annullato) uscite += r.pesoGrammi;
+            });
+          }
+
+          var disponibile = lotto ? lotto.pesoNettoDisponibileGrammi : 0;
+          var aventiDiritto = quote.filter(function (q) {
+            return q.quotaSpettanteGrammi > 0;
+          }).length;
+
+          return {
+            giornata: g,
+            capi: capi,
+            pesoCapiGrammi: pesoCapi,
+            presenti: presenti,
+            numeroPresenti: presenti.length,
+            lotto: lotto,
+            carneRegistrata: !!lotto,
+            disponibileGrammi: disponibile,
+            quotaPerPartecipanteGrammi: aventiDiritto
+              ? Math.floor(disponibile / aventiDiritto)
+              : (presenti.length ? Math.floor(disponibile / presenti.length) : 0),
+            numeroAventiDiritto: aventiDiritto || presenti.length,
+            vendite: vendite.filter(function (v) { return !v.annullata; }),
+            vendutoGrammi: venduto,
+            ritirati: ritiri.filter(function (r) { return !r.annullato; }),
+            usciteGrammi: uscite,
+            residuoGrammi: disponibile - venduto - uscite,
+            ricavoCent: ricavo
+          };
+        });
+
+        // le battute piu' recenti per prime
+        righe.sort(function (a, b) {
+          return String(b.giornata.data).localeCompare(String(a.giornata.data));
+        });
+        return righe;
+      });
+  }
+
   function riepilogoLotto(lottoId) {
     return App.data.repo.leggiStore(
       ['lottiCarne', 'quoteCarne', 'venditeCarne', 'ritiriCarne', 'membri', 'giornate']
@@ -832,6 +935,7 @@
     debitiStagione: debitiStagione,
     impostaRitiroAnnullato: impostaRitiroAnnullato,
     riepilogoLotto: riepilogoLotto,
+    giornateConCapi: giornateConCapi,
     perGiornata: perGiornata,
     riepilogoStagione: riepilogoStagione,
     riepilogoSocio: riepilogoSocio,

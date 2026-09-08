@@ -168,6 +168,96 @@
     });
   }
 
+  // Chiede un testo libero. Stessa veste della modale numerica: si puo'
+  // lasciare vuoto, e in quel caso si ottiene stringa vuota, non null.
+  function chiediTesto(opzioni) {
+    return new Promise(function (resolve) {
+      var cont = document.getElementById('modale-contenitore');
+      var fondo = document.createElement('div');
+      fondo.className = 'modale-fondo';
+      fondo.setAttribute('role', 'dialog');
+      fondo.setAttribute('aria-modal', 'true');
+      fondo.innerHTML =
+        '<div class="modale">' +
+          '<h2>' + esc(opzioni.titolo) + '</h2>' +
+          (opzioni.testo ? '<p>' + esc(opzioni.testo) + '</p>' : '') +
+          '<div class="campo">' +
+            '<label for="modale-testo">' + esc(opzioni.etichetta || '') + '</label>' +
+            '<input type="text" id="modale-testo" value="' +
+              esc(opzioni.valore || '') + '" autocomplete="off">' +
+          '</div>' +
+          '<div class="azioni">' +
+            '<button class="btn btn-primario" data-azione="si">' +
+              esc(opzioni.conferma || 'Conferma') + '</button>' +
+            '<button class="btn btn-fantasma" data-azione="no">' +
+              esc(opzioni.annulla || 'Annulla') + '</button>' +
+          '</div>' +
+        '</div>';
+
+      function chiudi(valore) {
+        if (fondo.parentNode) fondo.parentNode.removeChild(fondo);
+        document.removeEventListener('keydown', suTasto);
+        resolve(valore);
+      }
+      function suTasto(e) {
+        if (e.key === 'Escape') chiudi(null);
+        if (e.key === 'Enter') chiudi(fondo.querySelector('#modale-testo').value.trim());
+      }
+      fondo.addEventListener('click', function (e) {
+        var az = e.target.getAttribute && e.target.getAttribute('data-azione');
+        if (az === 'si') chiudi(fondo.querySelector('#modale-testo').value.trim());
+        else if (az === 'no' || e.target === fondo) chiudi(null);
+      });
+      document.addEventListener('keydown', suTasto);
+      cont.appendChild(fondo);
+      var campo = fondo.querySelector('#modale-testo');
+      if (campo) { campo.focus(); campo.select(); }
+    });
+  }
+
+  // Chiede di scegliere una voce da un elenco: si tocca il nome, non
+  // serve confermare due volte.
+  function chiediScelta(opzioni) {
+    return new Promise(function (resolve) {
+      var cont = document.getElementById('modale-contenitore');
+      var fondo = document.createElement('div');
+      fondo.className = 'modale-fondo';
+      fondo.setAttribute('role', 'dialog');
+      fondo.setAttribute('aria-modal', 'true');
+      fondo.innerHTML =
+        '<div class="modale">' +
+          '<h2>' + esc(opzioni.titolo) + '</h2>' +
+          (opzioni.testo ? '<p>' + esc(opzioni.testo) + '</p>' : '') +
+          '<div class="lista lista-scelta">' +
+            opzioni.opzioni.map(function (o) {
+              return '<button class="voce" data-scelta="' + esc(o.valore) + '">' +
+                '<span class="principale"><span class="titolo">' +
+                esc(o.etichetta) + '</span></span></button>';
+            }).join('') +
+          '</div>' +
+          '<div class="azioni">' +
+            '<button class="btn btn-fantasma" data-azione="no">' +
+              esc(opzioni.annulla || 'Annulla') + '</button>' +
+          '</div>' +
+        '</div>';
+
+      function chiudi(valore) {
+        if (fondo.parentNode) fondo.parentNode.removeChild(fondo);
+        document.removeEventListener('keydown', suTasto);
+        resolve(valore);
+      }
+      function suTasto(e) { if (e.key === 'Escape') chiudi(null); }
+      fondo.addEventListener('click', function (e) {
+        var bottone = e.target.closest ? e.target.closest('[data-scelta]') : null;
+        if (bottone) { chiudi(bottone.getAttribute('data-scelta')); return; }
+        var az = e.target.getAttribute && e.target.getAttribute('data-azione');
+        if (az === 'no' || e.target === fondo) chiudi(null);
+      });
+      document.addEventListener('keydown', suTasto);
+      cont.appendChild(fondo);
+    });
+  }
+
   // Comando riservato a chi puo' modificare. Restituisce stringa vuota
   // per chi ha accesso in sola lettura, cosi' l'interfaccia non mostra
   // pulsanti che poi verrebbero rifiutati.
@@ -226,6 +316,8 @@
     toast: toast,
     conferma: conferma,
     chiediNumero: chiediNumero,
+    chiediTesto: chiediTesto,
+    chiediScelta: chiediScelta,
     intestazione: intestazione,
     seModifica: seModifica,
     monta: monta,

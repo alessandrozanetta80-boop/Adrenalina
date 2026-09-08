@@ -9,6 +9,85 @@
     return '<div class="dettaglio-riga"><dt>' + etichetta + '</dt><dd>' + valore + '</dd></div>';
   }
 
+  // ---------- schede delle battute con capi ----------
+  //
+  // Ogni battuta in cui e' stato abbattuto qualcosa compare qui da sola:
+  // i capi arrivano dagli abbattimenti, i presenti dalle presenze. Da
+  // questa stessa schermata si registra la carne ricavata, si aggiunge
+  // una vendita e si segna un ritiro, senza rientrare nella giornata.
+  function schedeBattute(battute, C, K) {
+    if (!battute.length) {
+      return '<div class="sezione"><h3>Battute con capi</h3>' +
+        '<p class="nota-piccola">Nessun capo abbattuto in questa stagione: ' +
+        'non c\u2019è ancora carne da dividere.</p></div>';
+    }
+
+    return '<div class="sezione"><h3>Battute con capi' +
+      '<span class="contatore">' + battute.length + '</span></h3>' +
+      battute.map(function (b) {
+        var g = b.giornata;
+        var manca = !b.carneRegistrata;
+
+        var elencoCapi = b.capi.map(function (a) {
+          return '<div class="dettaglio-riga"><dt>' + C.esc(a.codiceCapo) + '</dt>' +
+            '<dd>' + C.esc(K.formattaKg(a.pesoGrammi || 0)) + '</dd></div>';
+        }).join('');
+
+        return '<div class="card scheda-battuta" style="margin-bottom:14px">' +
+          '<h4 class="titolo-battuta">' + C.esc(C.formattaData(g.data)) +
+            (g.zona ? ' · ' + C.esc(g.zona) : '') + '</h4>' +
+
+          '<dl class="dettaglio">' +
+            elencoCapi +
+            riga('<strong>Totale abbattuto</strong>',
+              '<strong>' + C.esc(K.formattaKg(b.pesoCapiGrammi)) + '</strong>') +
+            riga('Partecipanti presenti', String(b.numeroPresenti)) +
+          '</dl>' +
+
+          (manca
+            ? '<p class="nota-piccola">Carne ricavata non ancora registrata: ' +
+              'senza quel dato non si può dividere niente.</p>' +
+              C.seModifica(
+                '<button class="btn btn-azione btn-largo" data-carne-nuova="' +
+                C.esc(g.id) + '">Registra carne ricavata</button>')
+            : '<dl class="dettaglio">' +
+                riga('<strong>Carne ricavata</strong>',
+                  '<strong>' + C.esc(K.formattaKg(b.disponibileGrammi)) + '</strong>') +
+                riga('Quota per partecipante',
+                  C.esc(K.formattaKg(b.quotaPerPartecipanteGrammi)) + ' a testa') +
+                riga('Venduta', C.esc(K.formattaKg(b.vendutoGrammi))) +
+                riga('Ritirata', C.esc(K.formattaKg(b.usciteGrammi))) +
+                riga('<strong>Residua</strong>',
+                  '<strong>' + C.esc(K.formattaKg(b.residuoGrammi)) + '</strong>') +
+                (b.ricavoCent
+                  ? riga('Ricavo', C.esc(euro(b.ricavoCent))) : '') +
+              '</dl>' +
+              (b.vendite.length
+                ? '<div class="lista">' + b.vendite.map(function (v) {
+                    return '<div class="voce"><span class="principale">' +
+                      '<span class="titolo">' + C.esc(K.formattaKg(v.pesoGrammi)) +
+                        ' · ' + C.esc(euro(v.prezzoCentKg)) + '/kg</span>' +
+                      (v.vendutaDa
+                        ? '<span class="sotto">venduta da ' +
+                          C.esc(v.vendutaDa) + '</span>'
+                        : '') +
+                    '</span></div>';
+                  }).join('') + '</div>'
+                : '') +
+              C.seModifica(
+                '<div class="pila" style="margin-top:10px">' +
+                  '<button class="btn btn-azione" data-vendita="' + C.esc(g.id) +
+                    '">Aggiungi vendita</button>' +
+                  '<button class="btn btn-contorno" data-ritiro="' + C.esc(g.id) +
+                    '">Registra ritiro</button>' +
+                  '<button class="btn btn-contorno" data-carne-correggi="' +
+                    C.esc(b.lotto.id) + '">Correggi carne ricavata</button>' +
+                '</div>')) +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
   // ---------- riepilogo di stagione ----------
   function render() {
     var C = App.ui.componenti;
@@ -20,7 +99,12 @@
         C.monta('<div class="vuoto"><h2>Nessuna stagione attiva</h2></div>');
         return;
       }
-      return App.core.carne.riepilogoStagione(ctx.stagioneAttiva.id).then(function (r) {
+      return Promise.all([
+        App.core.carne.riepilogoStagione(ctx.stagioneAttiva.id),
+        App.core.carne.giornateConCapi(ctx.stagioneAttiva.id)
+      ]).then(function (risultati) {
+        var r = risultati[0];
+        var battute = risultati[1];
         C.intestazione({
           titolo: 'Carne',
           sotto: 'Stagione ' + ctx.stagioneAttiva.nome,
@@ -38,6 +122,8 @@
               riga('Ricavi carne', '<strong>' + C.esc(euro(t.ricavoTotaleCent)) + '</strong>') +
             '</dl></div>' +
           '</div>' +
+
+          schedeBattute(battute, C, K) +
 
           // Chi ha venduto cosa: il registro delle vendite per persona.
           (r.venditori && r.venditori.length
@@ -93,6 +179,175 @@
               '</div>';
             }).join('') + '</div>' +
           '</div>');
+
+        collegaAzioniBattute(battute, C, K);
+      });
+    });
+  }
+
+  // Le tre azioni della scheda battuta. Chiedono il minimo indispensabile
+  // e restano su questa pagina: e' il senso della schermata.
+  function collegaAzioniBattute(battute, C, K) {
+    function perGiornata(id) {
+      return battute.filter(function (b) { return b.giornata.id === id; })[0];
+    }
+
+    function agisci(selettore, fn) {
+      Array.prototype.forEach.call(document.querySelectorAll(selettore),
+        function (b) {
+          b.addEventListener('click', function () {
+            b.disabled = true;
+            Promise.resolve(fn(b)).then(function (rifatto) {
+              if (rifatto === false) { b.disabled = false; return; }
+              render();
+            }).catch(function (e) {
+              b.disabled = false;
+              C.toast(e.message, 'errore');
+            });
+          });
+        });
+    }
+
+    // 1. carne ricavata: apre il lotto della giornata
+    agisci('[data-carne-nuova]', function (b) {
+      var battuta = perGiornata(b.getAttribute('data-carne-nuova'));
+      return C.chiediNumero({
+        titolo: 'Carne ricavata',
+        testo: 'Quanti chili sono usciti dal macello per questa battuta? ' +
+          'Verranno divisi fra i ' + battuta.numeroPresenti + ' presenti.',
+        etichetta: 'Carne netta',
+        unita: 'kg',
+        valore: '',
+        conferma: 'Registra',
+        valida: function (v) {
+          var g = K.parseKgInGrammi(v);
+          if (g === null) return 'Scrivi una quantità, per esempio 100.';
+          if (g <= 0) return 'La quantità deve essere maggiore di zero.';
+          return null;
+        }
+      }).then(function (valore) {
+        if (valore === null) return false;
+        return K.creaLotto(battuta.giornata.id, {
+          pesoNettoDisponibileGrammi: K.parseKgInGrammi(valore), note: ''
+        }).then(function () { C.toast('Carne registrata.'); });
+      });
+    });
+
+    // 2. correzione della carne ricavata
+    agisci('[data-carne-correggi]', function (b) {
+      var lottoId = b.getAttribute('data-carne-correggi');
+      var battuta = battute.filter(function (x) {
+        return x.lotto && x.lotto.id === lottoId;
+      })[0];
+      var minimo = battuta.vendutoGrammi + battuta.usciteGrammi;
+      return C.chiediNumero({
+        titolo: 'Correggi la carne ricavata',
+        testo: 'Le quote dei partecipanti vengono ricalcolate.',
+        etichetta: 'Carne netta',
+        unita: 'kg',
+        valore: K.kgPerInput(battuta.disponibileGrammi),
+        conferma: 'Salva',
+        valida: function (v) {
+          var g = K.parseKgInGrammi(v);
+          if (g === null) return 'Scrivi una quantità, per esempio 100.';
+          if (g < minimo) {
+            return 'Sono già usciti ' + K.formattaKg(minimo) +
+              ': non può scendere sotto.';
+          }
+          return null;
+        }
+      }).then(function (valore) {
+        if (valore === null) return false;
+        return K.aggiornaPeso(lottoId, K.parseKgInGrammi(valore))
+          .then(function () { C.toast('Carne aggiornata.'); });
+      });
+    });
+
+    // 3. vendita, con chi l'ha venduta
+    agisci('[data-vendita]', function (b) {
+      var battuta = perGiornata(b.getAttribute('data-vendita'));
+      return C.chiediNumero({
+        titolo: 'Aggiungi vendita',
+        testo: 'Nel lotto restano ' + K.formattaKg(battuta.residuoGrammi) + '.',
+        etichetta: 'Quantità venduta',
+        unita: 'kg',
+        valore: '',
+        conferma: 'Continua',
+        valida: function (v) {
+          var g = K.parseKgInGrammi(v);
+          if (g === null) return 'Scrivi una quantità, per esempio 5.';
+          if (g <= 0) return 'La quantità deve essere maggiore di zero.';
+          if (g > battuta.residuoGrammi) {
+            return 'Nel lotto restano ' + K.formattaKg(battuta.residuoGrammi) + '.';
+          }
+          return null;
+        }
+      }).then(function (peso) {
+        if (peso === null) return false;
+        return C.chiediTesto({
+          titolo: 'Chi ha venduto?',
+          testo: 'Serve a sapere di chi sono quei chili. Puoi lasciare vuoto.',
+          etichetta: 'Venduta da',
+          valore: '',
+          conferma: 'Registra vendita'
+        }).then(function (chi) {
+          if (chi === null) return false;
+          return K.registraVendita(battuta.lotto.id, {
+            data: App.core.calendario.oggi(),
+            tipoTaglio: 'MEZZENA',
+            pesoGrammi: K.parseKgInGrammi(peso),
+            prezzoCentKg: App.costanti.prezzoPredefinito('MEZZENA'),
+            vendutaDa: chi,
+            note: ''
+          }).then(function () { C.toast('Vendita registrata.'); });
+        });
+      });
+    });
+
+    // 4. ritiro: chi si porta a casa la sua parte
+    agisci('[data-ritiro]', function (b) {
+      var battuta = perGiornata(b.getAttribute('data-ritiro'));
+      var presenti = battuta.presenti;
+      if (!presenti.length) {
+        C.toast('Nessun partecipante segnato in questa battuta.', 'errore');
+        return false;
+      }
+      return C.chiediScelta({
+        titolo: 'Chi ritira?',
+        opzioni: presenti.map(function (m) {
+          return { valore: m.id, etichetta: C.nomeCompleto(m) };
+        }),
+        conferma: 'Continua'
+      }).then(function (membroId) {
+        if (!membroId) return false;
+        return C.chiediNumero({
+          titolo: 'Quanto ritira?',
+          testo: 'Nel lotto restano ' + K.formattaKg(battuta.residuoGrammi) + '.',
+          etichetta: 'Quantità ritirata',
+          unita: 'kg',
+          valore: '',
+          conferma: 'Registra ritiro',
+          valida: function (v) {
+            var g = K.parseKgInGrammi(v);
+            if (g === null) return 'Scrivi una quantità, per esempio 2.';
+            if (g <= 0) return 'La quantità deve essere maggiore di zero.';
+            if (g > battuta.residuoGrammi) {
+              return 'Nel lotto restano ' + K.formattaKg(battuta.residuoGrammi) + '.';
+            }
+            return null;
+          }
+        }).then(function (peso) {
+          if (peso === null) return false;
+          return K.registraUscita({
+            lottoCarneId: battuta.lotto.id,
+            membroId: membroId,
+            stagioneId: battuta.giornata.stagioneId,
+            tipoMovimento: 'RITIRO_CREDITO',
+            data: App.core.calendario.oggi(),
+            pesoGrammi: K.parseKgInGrammi(peso),
+            note: ''
+          }).then(function () { C.toast('Ritiro registrato.'); });
+        });
       });
     });
   }

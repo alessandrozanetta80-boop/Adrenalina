@@ -32,12 +32,8 @@
 
   // L'accesso e' attivo solo se la configurazione e' completa.
   function configurato() {
-    return !!(
-      pulito(CONFIG.apiKey) &&
-      pulito(CONFIG.authDomain) &&
-      pulito(CONFIG.projectId) &&
-      pulito(CONFIG.appId)
-    );
+    return !!(pulito(CONFIG.apiKey) && pulito(CONFIG.authDomain) &&
+      pulito(CONFIG.projectId) && pulito(CONFIG.appId));
   }
 
   App.configFirebase = {
