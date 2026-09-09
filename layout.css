@@ -146,6 +146,11 @@
 .barra-bassa button .ico-capi     { background-image: url("ico-capi.png"); }
 .barra-bassa button .ico-carne    { background-image: url("ico-carne.png"); }
 .barra-bassa button .ico-squadra  { background-image: url("ico-squadra.png"); }
+/* Il cinghiale e' un disegno largo e basso: a parita' di riquadro resta
+   alto due terzi degli altri e sembra sminuito. Il riquadro si allarga
+   quanto serve perche' arrivi alla stessa altezza degli altri quattro.
+   Nessuna deformazione: l'immagine resta in proporzione. */
+.barra-bassa button .ico-capi { width: 44px; }
 
 /* L'icona non cambia fra attiva e non attiva: cambia l'etichetta. */
 .barra-bassa button.attivo { color: var(--arancio); }
