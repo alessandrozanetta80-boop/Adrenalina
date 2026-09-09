@@ -77,6 +77,18 @@
   }
 
   // ---------- configurazione della stagione ----------
+  // Cambia i prezzi standard della stagione. Non tocca le vendite gia'
+  // registrate: quelle hanno il prezzo che avevano quel giorno.
+  function aggiornaPrezzi(stagioneId, prezziCentKg) {
+    return configPerStagione(stagioneId).then(function (config) {
+      var aggiornata = JSON.parse(JSON.stringify(config));
+      aggiornata.prezziCentKg = prezziCentKg;
+      return App.data.repo.scrivi(['configCarne'], function (t) {
+        t.put('configCarne', App.data.repo.timbraModifica(aggiornata));
+      }).then(function () { return aggiornata; });
+    });
+  }
+
   function configPerStagione(stagioneId) {
     return App.data.configCarne.perStagione(stagioneId).then(function (c) {
       if (c) return c;
@@ -416,6 +428,9 @@
     if (!interoNonNegativo(campi.prezzoCentKg)) {
       errori.prezzoCentKg = 'Prezzo non valido.';
     }
+    if (!String(campi.vendutaDa || '').trim()) {
+      errori.vendutaDa = 'Scegli chi ha venduto la carne.';
+    }
     return errori;
   }
 
@@ -438,8 +453,8 @@
         tipoTaglio: campi.tipoTaglio,
         pesoGrammi: campi.pesoGrammi,
         prezzoCentKg: campi.prezzoCentKg,
-        // Chi ha comprato la carne. Non cambia l'attribuzione ai soci:
-        // il venduto resta ripartito fra gli aventi diritto.
+        // Socio che ha materialmente effettuato la vendita.
+        // Il venduto resta ripartito fra gli aventi diritto secondo la logica esistente.
         vendutaDa: (campi.vendutaDa || '').trim() || null,
         annullata: false,
         note: (campi.note || '').trim(),
@@ -921,6 +936,7 @@
     ripartisci: ripartisci,
     ordinaMembri: ordinaMembri,
     configPerStagione: configPerStagione,
+    aggiornaPrezzi: aggiornaPrezzi,
     salvaConfig: salvaConfig,
     presentiDiGiornata: presentiDiGiornata,
     creaLotto: creaLotto,

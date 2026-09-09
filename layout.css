@@ -85,7 +85,7 @@
   bottom: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--superficie);
   border-top: 1px solid var(--bordo);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -115,7 +115,10 @@
   justify-content: center;
   gap: 3px;
   color: var(--testo-tenue);
-  font-size: .8rem;
+  /* con cinque voci lo spazio per ognuna e' meno: il testo si stringe
+     quel tanto che basta a stare su una riga anche su schermi piccoli */
+  font-size: .74rem;
+  padding: 0 2px;
   font-weight: 600;
   line-height: 1.1;
 }

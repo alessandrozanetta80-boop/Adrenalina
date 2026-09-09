@@ -97,10 +97,13 @@
   ];
 
   var TIPI_TAGLIO = [
-    { codice: 'MEZZENA',    etichetta: 'Mezzena',    prezzoCentKg: 1000 },
-    { codice: 'MACINATA',   etichetta: 'Macinata',   prezzoCentKg: 1200 },
-    { codice: 'POLPA',      etichetta: 'Polpa',      prezzoCentKg: 1500 },
-    { codice: 'SPEZZATINO', etichetta: 'Spezzatino', prezzoCentKg: 1500 }
+    { codice: 'MEZZENA',     etichetta: 'Mezzena',      prezzoCentKg: 1000 },
+    { codice: 'MACINATA',    etichetta: 'Macinata',     prezzoCentKg: 1200 },
+    { codice: 'POLPA',       etichetta: 'Polpa',        prezzoCentKg: 1500 },
+    { codice: 'SPEZZATINO',  etichetta: 'Spezzatino',   prezzoCentKg: 1500 },
+    { codice: 'SALSICCIA',   etichetta: 'Salsiccia',    prezzoCentKg: 1200 },
+    { codice: 'SALAME',      etichetta: 'Salame',       prezzoCentKg: 1800 },
+    { codice: 'ALTRO',       etichetta: 'Altro',        prezzoCentKg: 1000 }
   ];
 
   var STATO_QUOTA = {

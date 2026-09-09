@@ -18,7 +18,12 @@
       var g = r.giornata || { id: params.id, data: null, zona: null };
       var indietro = '#/giornata/' + params.id + '/carne';
 
-      return App.core.carne.configPerStagione(r.lotto.stagioneId).then(function (config) {
+      return Promise.all([
+        App.core.carne.configPerStagione(r.lotto.stagioneId),
+        App.data.membri.perSquadra(r.lotto.squadraId)
+      ]).then(function (extra) {
+        var config = extra[0];
+        var membri = K.ordinaMembri(extra[1] || []);
         var prezzi = config.prezziCentKg || App.costanti.prezziPredefiniti();
 
         C.intestazione({
@@ -36,6 +41,18 @@
         var primo = App.costanti.TIPI_TAGLIO[0].codice;
         var prezzoIniziale = prezzi[primo] !== undefined
           ? prezzi[primo] : App.costanti.prezzoPredefinito(primo);
+
+        var nomeUtente = '';
+        try {
+          var st = App.core.accesso.stato();
+          nomeUtente = st && st.utente ? String(st.utente.nome || '').trim().toLowerCase() : '';
+        } catch (e) { /* nessuna preselezione */ }
+        var opzioniVenditore = '<option value="">Scegli socio</option>' +
+          membri.map(function (m) {
+            var nome = C.nomeCompleto(m);
+            var sel = nomeUtente && nome.toLowerCase() === nomeUtente ? ' selected' : '';
+            return '<option value="' + C.esc(nome) + '"' + sel + '>' + C.esc(nome) + '</option>';
+          }).join('');
 
         C.monta(
           '<div class="sezione">' +
@@ -55,11 +72,15 @@
                 C.esc(App.core.quote.formattaEuro(prezzoIniziale).replace(' €', '')) + '">' +
                 '<div class="errore" id="err-v-prezzo"></div></div>' +
             '</div>' +
-            '<p class="nota-piccola">Il prezzo è quello proposto per il taglio scelto ' +
-            'e resta modificabile per questa singola vendita.</p>' +
+            '<div class="card totale-vendita" id="totale-vendita">' +
+              '<span>Totale</span><strong id="v-totale">—</strong>' +
+            '</div>' +
+            '<p class="nota-piccola">Il prezzo è quello proposto per il prodotto ' +
+            'scelto e resta modificabile per questa singola vendita: lo standard ' +
+            'non cambia.</p>' +
             '<div class="campo"><label for="v-venduta-da">Venduta da</label>' +
-              '<input type="text" id="v-venduta-da" value="">' +
-              '<div class="aiuto">Chi ha venduto questa carne. Facoltativo.</div></div>' +
+              '<select id="v-venduta-da">' + opzioniVenditore + '</select>' +
+              '<div class="errore" id="err-v-venduta-da"></div></div>' +
               '<div class="campo"><label for="v-note">Note</label>' +
               '<textarea id="v-note"></textarea></div>' +
           '</div>' +
@@ -69,20 +90,41 @@
           '</div>');
 
         var selTaglio = document.getElementById('v-taglio');
+        // Il totale si aggiorna da solo: chi vende deve vedere subito
+        // quanto fa, senza calcolarlo a mente.
+        function aggiornaTotale() {
+          var kg = K.parseKgInGrammi(document.getElementById('v-peso').value);
+          var prezzo = App.core.quote.parseEuroInCent(
+            document.getElementById('v-prezzo').value);
+          var el = document.getElementById('v-totale');
+          if (kg === null || prezzo === null || kg <= 0 || prezzo <= 0) {
+            el.textContent = '—';
+            return;
+          }
+          el.textContent = App.core.quote.formattaEuro(
+            Math.round(kg * prezzo / 1000));
+        }
+        ['v-peso', 'v-prezzo'].forEach(function (id) {
+          document.getElementById(id).addEventListener('input', aggiornaTotale);
+        });
+        aggiornaTotale();
+
         selTaglio.addEventListener('change', function () {
           var opt = selTaglio.options[selTaglio.selectedIndex];
           var cent = Number(opt.getAttribute('data-prezzo')) || 0;
           document.getElementById('v-prezzo').value =
             App.core.quote.formattaEuro(cent).replace(' €', '');
+          aggiornaTotale();
         });
 
         function mostraErrori(errori) {
-          ['v-data', 'v-taglio', 'v-peso', 'v-prezzo'].forEach(function (id) {
+          ['v-data', 'v-taglio', 'v-peso', 'v-prezzo', 'v-venduta-da'].forEach(function (id) {
             var e = document.getElementById('err-' + id);
             if (e) e.textContent = '';
           });
           var mappa = { data: 'err-v-data', tipoTaglio: 'err-v-taglio',
-            pesoGrammi: 'err-v-peso', prezzoCentKg: 'err-v-prezzo' };
+            pesoGrammi: 'err-v-peso', prezzoCentKg: 'err-v-prezzo',
+            vendutaDa: 'err-v-venduta-da' };
           Object.keys(mappa).forEach(function (k) {
             if (errori[k]) document.getElementById(mappa[k]).textContent = errori[k];
           });

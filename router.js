@@ -28,6 +28,7 @@
     { re: /^#\/giornata\/([^/]+)\/carne$/,   vista: 'carneGiornata', params: function (m) { return { id: m[1] }; } },
     { re: /^#\/carne\/ritiro$/,              vista: 'formRitiro' },
     { re: /^#\/carne$/,                      vista: 'carneStagione' },
+    { re: /^#\/carne\/prodotti$/,             vista: 'prodottiCarne' },
     { re: /^#\/sincronizzazione$/,           vista: 'sincronizzazione' },
     { re: /^#\/calendario$/,                 vista: 'calendarioConfig' },
     { re: /^#\/stagioni$/,                   vista: 'stagioni' },
@@ -52,15 +53,18 @@
   var VISTE_DI_MODIFICA = [
     'formSocio', 'formGiornata', 'formCapo', 'formSanitario',
     'formVendita', 'formRitiro', 'carneGiornata', 'calendarioConfig',
-    'gestioneAccessi', 'sincronizzazione', 'stagioni'
+    'gestioneAccessi', 'sincronizzazione', 'stagioni', 'prodottiCarne'
   ];
 
   // A quale scheda della barra bassa appartiene ogni vista.
   var TAB = {
     home: 'home', configurazione: 'home',
     giornate: 'giornate', schedaGiornata: 'giornate', formGiornata: 'giornate',
-    presenze: 'giornate', carneGiornata: 'giornate', formVendita: 'giornate',
-    carneStagione: 'home', formRitiro: 'home',
+    presenze: 'giornate',
+    // Tutto quello che riguarda la carne appartiene alla sua scheda:
+    // si arriva e si resta li', senza passare dalla giornata.
+    carneStagione: 'carne', carneGiornata: 'carne', formVendita: 'carne',
+    formRitiro: 'carne', prodottiCarne: 'carne',
     abbattimenti: 'capi', schedaCapo: 'capi', formCapo: 'capi', formSanitario: 'capi',
     soci: 'squadra', schedaSocio: 'squadra', formSocio: 'squadra',
     stagioni: 'home', backup: 'home', calendarioConfig: 'giornate',

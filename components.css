@@ -1383,3 +1383,14 @@
   font-weight: 700;
 }
 .lista-scelta { max-height: 46vh; overflow-y: auto; margin-bottom: 12px; }
+
+/* totale della vendita: si vede mentre si scrive */
+.totale-vendita {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+.totale-vendita strong { font-size: 1.3rem; color: var(--verde); }
+.azioni-rapide .btn-largo { margin-bottom: 8px; }

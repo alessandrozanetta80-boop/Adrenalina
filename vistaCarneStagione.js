@@ -15,16 +15,26 @@
   // i capi arrivano dagli abbattimenti, i presenti dalle presenze. Da
   // questa stessa schermata si registra la carne ricavata, si aggiunge
   // una vendita e si segna un ritiro, senza rientrare nella giornata.
-  function schedeBattute(battute, C, K) {
+  // Le battute si dividono in tre gruppi, perche' tre sono le cose che
+  // si possono fare: registrare la carne, lavorarla, o solo consultarla.
+  //   DA LAVORARE   capi abbattuti, carne netta ancora da pesare
+  //   DISPONIBILE   c'e' ancora carne da vendere o ritirare
+  //   STORICO       tutto esaurito: resta il conto
+  function gruppo(battute, titolo, nota, vuoto, C, K) {
     if (!battute.length) {
-      return '<div class="sezione"><h3>Battute con capi</h3>' +
-        '<p class="nota-piccola">Nessun capo abbattuto in questa stagione: ' +
-        'non c\u2019è ancora carne da dividere.</p></div>';
+      return vuoto
+        ? '<div class="sezione"><h3>' + titolo + '</h3>' +
+          '<p class="nota-piccola">' + vuoto + '</p></div>'
+        : '';
     }
-
-    return '<div class="sezione"><h3>Battute con capi' +
+    return '<div class="sezione"><h3>' + titolo +
       '<span class="contatore">' + battute.length + '</span></h3>' +
-      battute.map(function (b) {
+      (nota ? '<p class="nota-piccola">' + nota + '</p>' : '') +
+      schedeBattute(battute, C, K) + '</div>';
+  }
+
+  function schedeBattute(battute, C, K) {
+    return battute.map(function (b) {
         var g = b.giornata;
         var manca = !b.carneRegistrata;
 
@@ -84,8 +94,7 @@
                     C.esc(b.lotto.id) + '">Correggi carne ricavata</button>' +
                 '</div>')) +
         '</div>';
-      }).join('') +
-    '</div>';
+      }).join('');
   }
 
   // ---------- riepilogo di stagione ----------
@@ -112,7 +121,17 @@
         });
 
         var t = r.totali;
+        // Tre gruppi, in ordine di urgenza.
+        var daLavorare = battute.filter(function (b) { return !b.carneRegistrata; });
+        var disponibili = battute.filter(function (b) {
+          return b.carneRegistrata && b.residuoGrammi > 0;
+        });
+        var storico = battute.filter(function (b) {
+          return b.carneRegistrata && b.residuoGrammi <= 0;
+        });
+
         C.monta(
+          // a. riepilogo generale
           '<div class="sezione">' +
             '<div class="card"><dl class="dettaglio">' +
               riga('Carne netta registrata', C.esc(K.formattaKg(t.disponibileGrammi))) +
@@ -123,7 +142,26 @@
             '</dl></div>' +
           '</div>' +
 
-          schedeBattute(battute, C, K) +
+          // b. azioni rapide: le due cose che si fanno ogni volta
+          C.seModifica(
+            '<div class="sezione pila azioni-rapide">' +
+              '<button class="btn btn-azione btn-largo" id="btn-vendita-rapida"' +
+                (disponibili.length ? '' : ' disabled') + '>Registra vendita</button>' +
+              '<button class="btn btn-contorno btn-largo" id="btn-ritiro-rapido"' +
+                (disponibili.length ? '' : ' disabled') + '>Registra ritiro</button>' +
+              (disponibili.length ? '' :
+                '<p class="nota-piccola">Nessun lotto con carne disponibile: ' +
+                'registra prima la carne ricavata da una battuta.</p>') +
+            '</div>') +
+
+          // c. da lavorare
+          gruppo(daLavorare, 'Da lavorare',
+            'Capi abbattuti, carne netta ancora da registrare.',
+            battute.length ? '' : 'Nessun capo abbattuto in questa stagione: ' +
+              'non c\u2019è ancora carne da dividere.', C, K) +
+
+          // d. carne disponibile
+          gruppo(disponibili, 'Carne disponibile', '', '', C, K) +
 
           // Chi ha venduto cosa: il registro delle vendite per persona.
           (r.venditori && r.venditori.length
@@ -144,12 +182,7 @@
               '</div>'
             : '') +
 
-          C.seModifica(
-            '<div class="sezione">' +
-              '<button class="btn btn-contorno" data-vai="#/carne/ritiro">' +
-              'Registra ritiro carne</button>' +
-            '</div>') +
-
+          // f. situazione soci, sotto le funzioni operative
           '<div class="sezione">' +
             '<h3>Soci<span class="contatore">obbligo ' +
               C.esc(K.formattaKg(r.obbligoGrammi)) + '</span></h3>' +
@@ -178,11 +211,64 @@
                 '</span>' +
               '</div>';
             }).join('') + '</div>' +
-          '</div>');
+          '</div>' +
+
+          // g. storico: battute esaurite
+          gruppo(storico, 'Storico', 'Battute con la carne tutta distribuita.',
+            '', C, K) +
+
+          C.seModifica(
+            '<div class="sezione">' +
+              '<button class="btn btn-contorno" data-vai="#/carne/prodotti">' +
+              'Configura prodotti e prezzi</button>' +
+            '</div>'));
 
         collegaAzioniBattute(battute, C, K);
+        collegaAzioniRapide(disponibili, C, K);
       });
     });
+  }
+
+  // Le due azioni rapide in cima alla pagina. Se c'e' una sola battuta
+  // con carne disponibile ci si va dritti; se ce ne sono piu' di una la
+  // si sceglie, senza uscire da qui.
+  function collegaAzioniRapide(disponibili, C, K) {
+    function scegliBattuta(titolo) {
+      if (!disponibili.length) return Promise.resolve(null);
+      if (disponibili.length === 1) return Promise.resolve(disponibili[0]);
+      return C.chiediScelta({
+        titolo: titolo,
+        testo: 'Da quale battuta esce questa carne?',
+        opzioni: disponibili.map(function (b) {
+          return {
+            valore: b.giornata.id,
+            etichetta: C.formattaData(b.giornata.data) +
+              (b.giornata.zona ? ' · ' + b.giornata.zona : '') +
+              ' — restano ' + K.formattaKg(b.residuoGrammi)
+          };
+        })
+      }).then(function (id) {
+        if (!id) return null;
+        return disponibili.filter(function (b) { return b.giornata.id === id; })[0];
+      });
+    }
+
+    var vendita = document.getElementById('btn-vendita-rapida');
+    if (vendita) {
+      vendita.addEventListener('click', function () {
+        scegliBattuta('Registra vendita').then(function (b) {
+          if (!b) return;
+          App.ui.router.vai('#/giornata/' + b.giornata.id + '/carne/vendita');
+        });
+      });
+    }
+
+    var ritiro = document.getElementById('btn-ritiro-rapido');
+    if (ritiro) {
+      ritiro.addEventListener('click', function () {
+        App.ui.router.vai('#/carne/ritiro');
+      });
+    }
   }
 
   // Le tre azioni della scheda battuta. Chiedono il minimo indispensabile
@@ -263,46 +349,15 @@
       });
     });
 
-    // 3. vendita, con chi l'ha venduta
-    agisci('[data-vendita]', function (b) {
-      var battuta = perGiornata(b.getAttribute('data-vendita'));
-      return C.chiediNumero({
-        titolo: 'Aggiungi vendita',
-        testo: 'Nel lotto restano ' + K.formattaKg(battuta.residuoGrammi) + '.',
-        etichetta: 'Quantità venduta',
-        unita: 'kg',
-        valore: '',
-        conferma: 'Continua',
-        valida: function (v) {
-          var g = K.parseKgInGrammi(v);
-          if (g === null) return 'Scrivi una quantità, per esempio 5.';
-          if (g <= 0) return 'La quantità deve essere maggiore di zero.';
-          if (g > battuta.residuoGrammi) {
-            return 'Nel lotto restano ' + K.formattaKg(battuta.residuoGrammi) + '.';
-          }
-          return null;
-        }
-      }).then(function (peso) {
-        if (peso === null) return false;
-        return C.chiediTesto({
-          titolo: 'Chi ha venduto?',
-          testo: 'Serve a sapere di chi sono quei chili. Puoi lasciare vuoto.',
-          etichetta: 'Venduta da',
-          valore: '',
-          conferma: 'Registra vendita'
-        }).then(function (chi) {
-          if (chi === null) return false;
-          return K.registraVendita(battuta.lotto.id, {
-            data: App.core.calendario.oggi(),
-            tipoTaglio: 'MEZZENA',
-            pesoGrammi: K.parseKgInGrammi(peso),
-            prezzoCentKg: App.costanti.prezzoPredefinito('MEZZENA'),
-            vendutaDa: chi,
-            note: ''
-          }).then(function () { C.toast('Vendita registrata.'); });
+    // 3. vendita: usa sempre il form completo. Niente scorciatoie che
+    // inventano tipo o prezzo: chi vende sceglie socio, prodotto, kg e €/kg.
+    Array.prototype.forEach.call(document.querySelectorAll('[data-vendita]'),
+      function (b) {
+        b.addEventListener('click', function () {
+          App.ui.router.vai('#/giornata/' +
+            b.getAttribute('data-vendita') + '/carne/vendita');
         });
       });
-    });
 
     // 4. ritiro: chi si porta a casa la sua parte
     agisci('[data-ritiro]', function (b) {
