@@ -51,7 +51,8 @@
           membri.map(function (m) {
             var nome = C.nomeCompleto(m);
             var sel = nomeUtente && nome.toLowerCase() === nomeUtente ? ' selected' : '';
-            return '<option value="' + C.esc(nome) + '"' + sel + '>' + C.esc(nome) + '</option>';
+            return '<option value="' + C.esc(nome) + '" data-membro-id="' +
+              C.esc(m.id) + '"' + sel + '>' + C.esc(nome) + '</option>';
           }).join('');
 
         C.monta(
@@ -141,7 +142,12 @@
             prezzoCentKg: App.core.quote.parseEuroInCent(
               document.getElementById('v-prezzo').value),
             vendutaDa: document.getElementById('v-venduta-da').value,
-              note: document.getElementById('v-note').value
+            vendutaDaMembroId: (function () {
+              var sel = document.getElementById('v-venduta-da');
+              var opt = sel.options[sel.selectedIndex];
+              return opt ? (opt.getAttribute('data-membro-id') || '') : '';
+            })(),
+            note: document.getElementById('v-note').value
           };
           var errori = App.core.carne.validaVendita(campi);
           if (Object.keys(errori).length) {

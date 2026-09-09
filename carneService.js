@@ -76,6 +76,30 @@
     });
   }
 
+
+  // Il venditore e' una persona precisa, non una quota da ripartire fra i
+  // partecipanti. Le vendite nuove salvano anche l'id del socio; per le
+  // vendite gia' esistenti resta il fallback sul nome completo.
+  function normalizzaNomePersona(v) {
+    return String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function indiceMembriPerNome(membri) {
+    var out = {};
+    (membri || []).forEach(function (m) {
+      var nome = normalizzaNomePersona((m.nome || '') + ' ' + (m.cognome || ''));
+      if (nome && !out[nome]) out[nome] = m.id;
+    });
+    return out;
+  }
+
+  function membroIdVenditore(vendita, perId, perNome) {
+    var id = String(vendita.vendutaDaMembroId || '').trim();
+    if (id && perId[id]) return id;
+    var nome = normalizzaNomePersona(vendita.vendutaDa);
+    return nome && perNome[nome] ? perNome[nome] : null;
+  }
+
   // ---------- configurazione della stagione ----------
   // Cambia i prezzi standard della stagione. Non tocca le vendite gia'
   // registrate: quelle hanno il prezzo che avevano quel giorno.
@@ -456,6 +480,7 @@
         // Socio che ha materialmente effettuato la vendita.
         // Il venduto resta ripartito fra gli aventi diritto secondo la logica esistente.
         vendutaDa: (campi.vendutaDa || '').trim() || null,
+        vendutaDaMembroId: (campi.vendutaDaMembroId || '').trim() || null,
         annullata: false,
         note: (campi.note || '').trim(),
         demo: false
@@ -714,15 +739,20 @@
           quotaCompensataGrammi: q.quotaCompensataGrammi || 0
         };
       });
-      // Il venduto si attribuisce solo a chi ha davvero diritto alla carne.
       var aventi = membri.filter(function (m) {
         var st = statoPer[m.id];
         return st.haDiritto && !st.inCompensazione;
       });
-      var partiVendute = ripartisci(vendutoGrammi, aventi.length);
       var quotaPerMembro = {}, vendutoPerMembro = {};
+      var perNome = indiceMembriPerNome(d.membri);
       quote.forEach(function (q) { quotaPerMembro[q.membroId] = q.quotaSpettanteGrammi; });
-      aventi.forEach(function (m, i) { vendutoPerMembro[m.id] = partiVendute[i]; });
+      // I kg venduti appartengono al socio che ha materialmente fatto la
+      // vendita. Non vengono piu' divisi artificialmente fra i presenti.
+      venditeValide.forEach(function (v) {
+        var venditoreId = membroIdVenditore(v, perId, perNome);
+        if (!venditoreId) return;
+        vendutoPerMembro[venditoreId] = (vendutoPerMembro[venditoreId] || 0) + v.pesoGrammi;
+      });
 
       var giornata = d.giornate.filter(function (g) { return g.id === lotto.giornataId; })[0] || null;
 
@@ -785,6 +815,7 @@
 
       var perId = {};
       d.membri.forEach(function (m) { perId[m.id] = m; });
+      var perNome = indiceMembriPerNome(d.membri);
 
       var totali = {
         disponibileGrammi: 0, vendutoGrammi: 0, ritiratoGrammi: 0,
@@ -802,28 +833,16 @@
           if (v.lottoCarneId !== l.id || v.annullata) return;
           venduto += v.pesoGrammi;
           totali.ricavoTotaleCent += ricavoCent(v.pesoGrammi, v.prezzoCentKg);
+          var venditoreId = membroIdVenditore(v, perId, perNome);
+          if (venditoreId) {
+            vendutoPerMembro[venditoreId] =
+              (vendutoPerMembro[venditoreId] || 0) + v.pesoGrammi;
+          }
         });
         totali.vendutoGrammi += venduto;
 
-        // Il venduto si attribuisce solo a chi aveva diritto in quella battuta.
-        var statoPer = {};
-        quote.forEach(function (q) {
-          statoPer[q.membroId] = {
-            haDiritto: q.haDiritto !== false,
-            inCompensazione: q.inCompensazione === true
-          };
-        });
-        var membri = ordinaMembri(quote.map(function (q) {
-          return perId[q.membroId] || { id: q.membroId, nome: '', cognome: '' };
-        }));
-        var aventi = membri.filter(function (m) {
-          var st = statoPer[m.id];
-          return st.haDiritto && !st.inCompensazione;
-        });
-        var parti = ripartisci(venduto, aventi.length);
-        aventi.forEach(function (m, i) {
-          vendutoPerMembro[m.id] = (vendutoPerMembro[m.id] || 0) + parti[i];
-        });
+        // Quote e diritto alla carne dipendono dalla presenza alla battuta;
+        // l'obbligo di vendita invece dipende da chi ha davvero venduto.
         quote.forEach(function (q) {
           quotaPerMembro[q.membroId] = (quotaPerMembro[q.membroId] || 0) + q.quotaSpettanteGrammi;
           compensatoPerMembro[q.membroId] =

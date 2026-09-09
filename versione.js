@@ -2,7 +2,7 @@
   'use strict';
   global.App = global.App || {};
   App.versione = {
-    APP_VERSION: '0.8.2',
+    APP_VERSION: '0.8.3',
     SCHEMA_VERSION: 7,
     FORMATO_BACKUP: 'adrenalina-backup'
   };
