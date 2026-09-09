@@ -131,7 +131,24 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.barra-bassa button.attivo { color: var(--verde); }
+/* Icone della barra: immagini vere della squadra, con il loro colore.
+   Il riquadro e' identico per tutte e cinque e "contain" fa entrare il
+   lato lungo senza deformare niente. */
+.barra-bassa button .ico {
+  width: 26px;
+  height: 26px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
+.barra-bassa button .ico-home     { background-image: url("ico-home.png"); }
+.barra-bassa button .ico-giornate { background-image: url("ico-giornate.png"); }
+.barra-bassa button .ico-capi     { background-image: url("ico-capi.png"); }
+.barra-bassa button .ico-carne    { background-image: url("ico-carne.png"); }
+.barra-bassa button .ico-squadra  { background-image: url("ico-squadra.png"); }
+
+/* L'icona non cambia fra attiva e non attiva: cambia l'etichetta. */
+.barra-bassa button.attivo { color: var(--arancio); }
 /* La scheda attiva non si distingue solo dal colore: ha anche la barretta. */
 .barra-bassa button.attivo::before {
   content: "";

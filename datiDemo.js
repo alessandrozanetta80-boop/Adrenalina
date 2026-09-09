@@ -323,11 +323,16 @@
         }));
       });
 
+      // Ogni vendita appartiene interamente al socio che l'ha fatta: senza
+      // venditore non maturerebbe alcun credito e la demo mostrerebbe uno
+      // stato impossibile. I venditori sono tre presenti reali di questa
+      // battuta, presi dall'elenco gia' ordinato: nessun membro inventato.
       [
-        { taglio: 'MEZZENA',  peso: 30000, prezzo: 1000 },
-        { taglio: 'MACINATA', peso: 30000, prezzo: 1200 },
-        { taglio: 'POLPA',    peso: 40000, prezzo: 1500 }
+        { taglio: 'MEZZENA',  peso: 30000, prezzo: 1000, venditore: 0 },
+        { taglio: 'MACINATA', peso: 30000, prezzo: 1200, venditore: 1 },
+        { taglio: 'POLPA',    peso: 40000, prezzo: 1500, venditore: 2 }
       ].forEach(function (v) {
+        var chi = presentiCarne[v.venditore % presentiCarne.length];
         venditeCarne.push(App.data.repo.timbraCreazione({
           id: App.core.id.nuovo(App.core.id.VENDITA_CARNE),
           lottoCarneId: idLotto,
@@ -335,6 +340,8 @@
           tipoTaglio: v.taglio,
           pesoGrammi: v.peso,
           prezzoCentKg: v.prezzo,
+          vendutaDa: ((chi.nome || '') + ' ' + (chi.cognome || '')).trim(),
+          vendutaDaMembroId: chi.id,
           annullata: false,
           note: '',
           demo: true
