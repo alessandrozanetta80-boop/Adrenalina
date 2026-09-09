@@ -976,6 +976,41 @@
 .voce[disabled] { opacity: .55; cursor: default; }
 .voce:not([disabled]):active { background: var(--neutro-sfondo); }
 
+/* Riga con i pulsanti sotto, invece che di fianco.
+   Serve dove l'etichetta e' lunga (un indirizzo di posta) e i comandi
+   sono due: affiancati si sovrapporrebbero al testo e lo taglierebbero. */
+.voce-colonna {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  cursor: default;
+}
+.voce-colonna .principale { width: 100%; }
+/* l'indirizzo va a capo invece di essere troncato */
+.voce-colonna .titolo {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
+}
+.voce-colonna .sotto { overflow-wrap: anywhere; }
+
+.azioni-riga {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.azioni-riga .btn-piccolo { flex: 1 1 auto; }
+
+/* variante distruttiva del pulsante piccolo: revoca, rifiuta */
+.btn-scarta {
+  border-color: var(--pericolo);
+  color: var(--pericolo);
+  background: var(--superficie);
+}
+.btn-scarta:active { background: var(--pericolo-sfondo); }
+
 /* riga giornata nell'elenco */
 .voce-giornata .alta {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
