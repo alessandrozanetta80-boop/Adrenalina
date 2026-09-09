@@ -142,6 +142,12 @@
             '</dl></div>' +
           '</div>' +
 
+          // Esportazione: stesso motore dei Report, nessuna logica ripetuta.
+          '<div class="sezione">' +
+            '<button class="btn btn-contorno btn-largo" data-pdf="carne">' +
+            'Esporta PDF</button>' +
+          '</div>' +
+
           // b. azioni rapide: le due cose che si fanno ogni volta
           C.seModifica(
             '<div class="sezione pila azioni-rapide">' +

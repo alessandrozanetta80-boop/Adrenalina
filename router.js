@@ -29,6 +29,8 @@
     { re: /^#\/carne\/ritiro$/,              vista: 'formRitiro' },
     { re: /^#\/carne$/,                      vista: 'carneStagione' },
     { re: /^#\/carne\/prodotti$/,             vista: 'prodottiCarne' },
+    { re: /^#\/report$/,                     vista: 'report' },
+    { re: /^#\/report\/([a-z]+)$/,           vista: 'reportDettaglio', params: function (m) { return { tipo: m[1] }; } },
     { re: /^#\/sincronizzazione$/,           vista: 'sincronizzazione' },
     { re: /^#\/calendario$/,                 vista: 'calendarioConfig' },
     { re: /^#\/stagioni$/,                   vista: 'stagioni' },
@@ -67,6 +69,8 @@
     formRitiro: 'carne', prodottiCarne: 'carne',
     abbattimenti: 'capi', schedaCapo: 'capi', formCapo: 'capi', formSanitario: 'capi',
     soci: 'squadra', schedaSocio: 'squadra', formSocio: 'squadra',
+    // I report si raggiungono dalla Squadra e restano in quella scheda.
+    report: 'squadra', reportDettaglio: 'squadra',
     stagioni: 'home', backup: 'home', calendarioConfig: 'giornate',
     sincronizzazione: 'home',
     accesso: '', gestioneAccessi: 'home'

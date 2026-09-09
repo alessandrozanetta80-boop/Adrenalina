@@ -73,6 +73,11 @@
             '<button class="btn btn-azione" data-vai="#/capo/nuovo">' +
             '+ Nuovo abbattimento</button>' +
           '</div>') +
+        // Esportazione: stesso motore dei Report, nessuna logica ripetuta.
+        '<div class="sezione">' +
+          '<button class="btn btn-contorno btn-largo" data-pdf="abbattimenti">' +
+          'Esporta PDF</button>' +
+        '</div>' +
         '<div class="sezione">' +
           (dati.righe.length
             ? '<div class="lista">' + dati.righe.map(function (r) {

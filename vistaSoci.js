@@ -50,6 +50,12 @@
         : '<div class="vuoto">Nessun socio da mostrare.</div>';
 
       C.monta(
+        // I report sono di sola consultazione: restano raggiungibili
+        // anche con accesso in sola lettura.
+        '<div class="sezione">' +
+          '<button class="btn btn-azione btn-largo" data-vai="#/report">' +
+          'Report e PDF</button>' +
+        '</div>' +
         C.seModifica(
           '<div class="sezione">' +
             '<button class="btn btn-contorno" data-vai="#/socio/nuovo">' +

@@ -195,6 +195,12 @@
             '<p class="testo-note">' + C.esc(g.note) + '</p></div>'
           : '') +
 
+        // --- Esportazione PDF della singola giornata ---
+        '<div class="sezione">' +
+          '<button class="btn btn-contorno btn-largo" data-pdf="giornata" ' +
+          'data-pdf-id="' + C.esc(g.id) + '">Esporta PDF giornata</button>' +
+        '</div>' +
+
         // --- E. azioni secondarie ---
         C.seModifica(
           '<div class="sezione pila">' +
